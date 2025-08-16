@@ -8,10 +8,11 @@
 
 /**
  * @file main.cpp
- * @brief Main entry point for M5Stack Tab5 Operating System
+ * @brief Main entry point for M5Stack Tab5 LVGL test os
  * 
- * Initializes and runs the core operating system framework
- * with all subsystems including HAL, UI, Apps, and Services.
+ * Initializes and runs the comprehensive operating system framework
+ * with modular architecture including HAL, UI, Apps, and Services layers.
+ * Designed specifically for M5Stack Tab5 ESP32-P4 hardware.
  */
 
 // Demo application class
@@ -42,7 +43,7 @@ public:
             if (m_label) {
                 char text[512];
                 snprintf(text, sizeof(text),
-                    "M5Stack Tab5 Operating System\n"
+                    "M5Stack Tab5 LVGL test os\n"
                     "Version %s\n\n"
                     "5-inch 1280x720 MIPI-DSI Display\n"
                     "GT911 Touch Controller\n"
@@ -115,8 +116,8 @@ void setup() {
     delay(1000); // Give time for serial to initialize
     
     Serial.println("\n" "========================================");
-    Serial.println("M5Stack Tab5 Operating System v" OS_VERSION_STRING);
-    Serial.println("ESP32-P4 LVGL Framework");
+    Serial.println("M5Stack Tab5 LVGL test os v" OS_VERSION_STRING);
+    Serial.println("ESP32-P4 Modular Operating System");
     Serial.println("========================================\n");
 
     // Initialize the operating system
@@ -156,7 +157,7 @@ void setup() {
         demoApp->createUI(lv_scr_act());
     }
 
-    Serial.println("M5Stack Tab5 OS startup complete!");
+    Serial.println("M5Stack Tab5 LVGL test os startup complete!");
     Serial.println("System is ready for operation.\n");
 }
 

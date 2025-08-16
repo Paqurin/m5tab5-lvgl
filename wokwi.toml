@@ -1,7 +1,0 @@
-[wokwi]
-version = 1
-firmware = '.pio/build/esp32-p4-evboard/firmware.bin'
-elf = '.pio/build/esp32-p4-evboard/firmware.elf'
-
-[[wokwi.chip]]
-type = "esp32-p4"

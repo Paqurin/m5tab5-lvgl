@@ -1,6 +1,6 @@
-# M5Stack Tab5 LVGL Demo Project
+# M5Stack Tab5 LVGL test os
 
-A PlatformIO project demonstrating LVGL graphics library on the M5Stack Tab5 ESP32-P4 device with Wokwi simulation support.
+A comprehensive operating system framework for the M5Stack Tab5 ESP32-P4 device built with LVGL graphics library and modular architecture.
 
 ## Hardware Specifications
 
@@ -14,15 +14,17 @@ A PlatformIO project demonstrating LVGL graphics library on the M5Stack Tab5 ESP
 - **Connectivity**: WiFi 6 (802.11ax), Bluetooth 5.0
 - **Power**: USB-C
 
-## Project Features
+## Operating System Features
 
-- ✅ ESP32-P4 RISC-V architecture support
-- ✅ Arduino framework compatibility  
-- ✅ LVGL 8.x graphics library integration
-- ✅ 1280×720 HD display configuration
-- ✅ Wokwi simulation setup
-- ✅ Memory-optimized display buffer
-- ✅ Touch input ready (hardware-dependent)
+- ✅ **Modular OS Architecture** - HAL, System, UI, Apps, Services layers
+- ✅ **Application Management** - Dynamic app loading and lifecycle control
+- ✅ **Event System** - Inter-component communication framework
+- ✅ **Memory Management** - Optimized memory allocation and monitoring
+- ✅ **Task Scheduling** - Multi-tasking support with priority management
+- ✅ **HAL Abstraction** - Display, Touch, Storage, Power management
+- ✅ **UI Framework** - Theme management and screen handling
+- ✅ **LVGL Integration** - 1280×720 HD graphics with 16-bit color
+- ✅ **ESP32-P4 Support** - RISC-V dual-core architecture optimization
 
 ## Build Configuration
 
@@ -58,49 +60,89 @@ pip install platformio
 pio run -e esp32-p4-evboard
 ```
 
-## Wokwi Simulation
+## OS Architecture
 
-The project includes Wokwi simulation files for development and testing:
+The operating system follows a layered modular architecture:
 
-- **wokwi.toml** - Simulation configuration
-- **diagram.json** - Hardware simulation diagram
+### System Layer (`src/system/`)
+- **OS Manager** - Core system initialization and coordination
+- **Event System** - Publish/subscribe event handling
+- **Memory Manager** - Dynamic memory allocation and monitoring
+- **Task Scheduler** - Multi-tasking and priority management
 
-### Running Simulation
-1. Open [Wokwi](https://wokwi.com)
-2. Import the project files
-3. Run the simulation
+### HAL Layer (`src/hal/`)
+- **Display HAL** - MIPI-DSI display management
+- **Touch HAL** - GT911 multi-touch input handling
+- **Storage HAL** - Flash and SD card file systems
+- **Power HAL** - Battery and power management
 
-**Note**: Wokwi simulation uses ESP32-S3 + ILI9341 (320×240) as ESP32-P4 and 5-inch MIPI-DSI displays are not available in Wokwi.
+### UI Layer (`src/ui/`)
+- **UI Manager** - LVGL integration and screen management
+- **Theme Manager** - Dark/light theme switching
+- **Input Manager** - Touch input processing
+- **Screen Manager** - Multi-screen navigation
+
+### Application Layer (`src/apps/`)
+- **App Manager** - Dynamic application loading
+- **Base App** - Application framework and lifecycle
+- **Demo App** - Built-in system information display
+
+### Services Layer (`src/services/`)
+- **Service Manager** - Background service management
 
 ## File Structure
 
 ```
 ├── src/
-│   └── main.cpp           # Main application with LVGL demo
+│   ├── main.cpp           # Main application entry point
+│   ├── system/            # Core OS components
+│   │   ├── os_manager.*   # System initialization
+│   │   ├── event_system.* # Event handling
+│   │   ├── memory_manager.* # Memory management
+│   │   └── task_scheduler.* # Task scheduling
+│   ├── hal/               # Hardware abstraction
+│   │   ├── display_hal.*  # Display management
+│   │   ├── touch_hal.*    # Touch input
+│   │   ├── storage_hal.*  # File system
+│   │   └── power_hal.*    # Power management
+│   ├── ui/                # User interface
+│   │   ├── ui_manager.*   # LVGL integration
+│   │   ├── theme_manager.* # Theme handling
+│   │   ├── input_manager.* # Input processing
+│   │   └── screen_manager.* # Screen management
+│   ├── apps/              # Applications
+│   │   ├── app_manager.*  # App lifecycle
+│   │   └── base_app.*     # App framework
+│   └── services/          # Background services
+│       └── service_manager.* # Service management
 ├── include/
 │   └── lv_conf.h          # LVGL configuration
 ├── platformio.ini         # PlatformIO configuration
-├── wokwi.toml            # Wokwi simulation config
-├── diagram.json          # Wokwi hardware diagram
-├── README_M5TAB5.md      # Hardware specifications
 └── README.md             # This file
 ```
 
 ## Development Notes
 
+### Operating System Design
+The M5Stack Tab5 LVGL test os implements:
+- **Singleton Pattern** - Core managers accessible via `OS()` macro
+- **Event-Driven Architecture** - Asynchronous communication between components
+- **Resource Management** - Automatic cleanup and memory monitoring
+- **Modular Design** - Easy to extend with new applications and services
+
 ### Display Configuration
-The project is configured for the actual M5Tab5 hardware:
+Optimized for M5Stack Tab5 hardware:
 - Resolution: 1280×720 (5-inch HD display)
 - Color depth: 16-bit (RGB565)
 - Buffer: 10 lines (12,800 pixels)
+- MIPI-DSI interface support
 
-### LVGL Configuration
-Key LVGL settings in `include/lv_conf.h`:
-- `LV_COLOR_DEPTH 16` - 16-bit color
-- Memory and performance optimizations for ESP32-P4
-
-### Arduino Framework
-Uses Arduino-ESP32 framework for easier development and library compatibility.
+### Application Development
+To create new applications:
+1. Inherit from `BaseApp` class
+2. Implement required lifecycle methods
+3. Register with `AppManager`
+4. Handle UI creation and events
 
 ## Building
 

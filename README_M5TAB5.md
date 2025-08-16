@@ -18,10 +18,11 @@
 - Bluetooth 5.0
 - USB-C for programming and power
 
-## Wokwi Simulation Notes
-The Wokwi simulation uses:
-- ESP32-S3 (ESP32-P4 not available in Wokwi)
-- ILI9341 320×240 display (5-inch MIPI-DSI not available)
-- Basic GPIO connections for SPI simulation
+## M5Stack Tab5 LVGL test os
+This operating system framework is specifically designed for the M5Stack Tab5 hardware specifications above, providing:
 
-The actual firmware is configured for the real M5Tab5 hardware specifications.
+- Full hardware abstraction layer (HAL) for all components
+- Optimized memory management for ESP32-P4 RISC-V architecture
+- Native MIPI-DSI display support with 1280×720 resolution
+- GT911 multi-touch input handling
+- Modular application and service framework
