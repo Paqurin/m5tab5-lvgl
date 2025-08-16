@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <M5Unified.h>
 #include <lvgl.h>
 
 #if LV_COLOR_DEPTH != 16
@@ -9,42 +8,23 @@
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t *buf;
 
-void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
-  auto touch = M5.Touch.getDetail();
-  if (touch.isPressed()) {
-    data->state = LV_INDEV_STATE_PR;
-    data->point.x = touch.x;
-    data->point.y = touch.y;
-  } else {
-    data->state = LV_INDEV_STATE_REL;
-  }
-}
-
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
-  uint32_t w = (area->x2 - area->x1 + 1);
-  uint32_t h = (area->y2 - area->y1 + 1);
-  
-  M5.Display.startWrite();
-  M5.Display.setAddrWindow(area->x1, area->y1, w, h);
-  M5.Display.writePixels((lgfx::rgb565_t*)&color_p->full, w * h);
-  M5.Display.endWrite();
-  
   lv_disp_flush_ready(disp);
 }
 
 void setup() {
-  auto cfg = M5.config();
-  cfg.serial_baudrate = 0; // Disable serial
-  M5.begin(cfg);
+  Serial.begin(115200);
+  Serial.println("Starting M5Stack Tab5 LVGL Demo");
   
   lv_init();
   
-  uint16_t screen_width = M5.Display.width();
-  uint16_t screen_height = M5.Display.height();
+  uint16_t screen_width = 1280;
+  uint16_t screen_height = 720;
   uint32_t buf_size = screen_width * 10;
   
   buf = (lv_color_t*)malloc(buf_size * sizeof(lv_color_t));
   if (!buf) {
+    Serial.println("Failed to allocate display buffer");
     return;
   }
   
@@ -59,23 +39,19 @@ void setup() {
   
   lv_disp_t *disp = lv_disp_drv_register(&disp_drv);
   if (!disp) {
+    Serial.println("Failed to register display driver");
     return;
   }
   
-  static lv_indev_drv_t indev_drv;
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_POINTER;
-  indev_drv.read_cb = my_touchpad_read;
-  lv_indev_drv_register(&indev_drv);
-  
   lv_obj_t *label = lv_label_create(lv_scr_act());
-  lv_label_set_text(label, "M5Stack Tab5\nLVGL Demo\n\nTouch screen\nto interact!");
+  lv_label_set_text(label, "M5Stack Tab5\nLVGL Demo\n\n5-inch 1280x720\nMIPI-DSI Display\nGT911 Touch\n\nESP32-P4 Arduino\nBuild Successful!");
   lv_obj_center(label);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+  
+  Serial.println("LVGL UI initialized");
 }
 
 void loop() {
-  M5.update();
   lv_timer_handler();
   delay(5);
 }
