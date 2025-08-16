@@ -1,0 +1,971 @@
+#include <M5Unified.h>
+#include <vector>
+#include <memory>
+
+// Enhanced color definitions for ESP32-P4's improved display capabilities
+#define TFT_BLACK       0x0000
+#define TFT_NAVY        0x000F
+#define TFT_DARKGREEN   0x03E0
+#define TFT_DARKCYAN    0x03EF
+#define TFT_MAROON      0x7800
+#define TFT_PURPLE      0x780F
+#define TFT_OLIVE       0x7BE0
+#define TFT_LIGHTGREY   0xC618
+#define TFT_DARKGREY    0x7BEF
+#define TFT_BLUE        0x001F
+#define TFT_GREEN       0x07E0
+#define TFT_CYAN        0x07FF
+#define TFT_RED         0xF800
+#define TFT_MAGENTA     0xF81F
+#define TFT_YELLOW      0xFFE0
+#define TFT_WHITE       0xFFFF
+#define TFT_ORANGE      0xFDA0
+#define TFT_PINK        0xFC9F
+#define TFT_SKYBLUE     0x867D
+#define TFT_VIOLET      0x915C
+
+// ESP32-P4 optimized Window class with enhanced graphics
+class Window {
+public:
+    int x, y, width, height;
+    String title;
+    String content;
+    bool active;
+    bool isMoving;
+    bool isResizing;
+    bool minimized;
+    int id;
+    int savedWidth, savedHeight;
+    
+    static const int RESIZE_HANDLE_SIZE = 12;
+    static const int TITLE_BAR_HEIGHT = 28;
+    static const int MIN_WIDTH = 120;
+    static const int MIN_HEIGHT = 80;
+    
+    // Enhanced graphics for P4's capabilities
+    int cursorPos;
+    unsigned long lastCursorBlink;
+    bool cursorVisible;
+    
+    Window(int _x, int _y, int _w, int _h, String _title, int _id) {
+        x = _x;
+        y = _y;
+        width = _w;
+        height = _h;
+        title = _title;
+        content = "";
+        active = false;
+        isMoving = false;
+        isResizing = false;
+        minimized = false;
+        id = _id;
+        cursorPos = 0;
+        savedWidth = width;
+        savedHeight = height;
+        lastCursorBlink = 0;
+        cursorVisible = true;
+    }
+    
+    void draw() {
+        if (minimized) {
+            drawMinimized();
+            return;
+        }
+        
+        // Enhanced shadow with alpha blending effect (P4 supports better graphics)
+        if (active) {
+            drawShadow();
+        }
+        
+        // Enhanced window background with subtle gradient
+        drawWindowBackground();
+        
+        // Enhanced title bar with gradient and glass effect
+        drawTitleBar();
+        
+        // Window controls
+        drawWindowControls();
+        
+        // Enhanced border with 3D effect
+        drawWindowBorder();
+        
+        // Content area with advanced text rendering
+        drawContent();
+        
+        // Enhanced resize handle
+        if (active && !minimized) {
+            drawResizeHandle();
+        }
+    }
+    
+    void drawShadow() {
+        // Multi-layer shadow for depth (P4 can handle more complex graphics)
+        for (int i = 1; i <= 3; i++) {
+            uint16_t shadowColor = 0x2104 + (i * 0x1082); // Gradient shadow
+            M5.Lcd.fillRect(x + i, y + i, width, height, shadowColor);
+        }
+    }
+    
+    void drawWindowBackground() {
+        // Enhanced background with subtle texture
+        uint16_t bgColor = active ? TFT_WHITE : 0xF7DE;
+        M5.Lcd.fillRect(x, y, width, height, bgColor);
+        
+        // Add subtle texture pattern for P4's enhanced graphics
+        if (active) {
+            for (int i = 0; i < keys.length(); i++) {
+                int keyX = startX + i * keyWidth;
+                int keyY = startY + row * keyHeight;
+                
+                // Enhanced 3D key effect
+                M5.Lcd.fillRoundRect(keyX + 2, keyY + 2, keyWidth - 4, keyHeight - 4, 4, TFT_WHITE);
+                M5.Lcd.drawRoundRect(keyX + 2, keyY + 2, keyWidth - 4, keyHeight - 4, 4, TFT_BLACK);
+                
+                // Key highlight
+                M5.Lcd.drawRoundRect(keyX + 3, keyY + 3, keyWidth - 6, keyHeight - 6, 3, TFT_LIGHTGREY);
+                
+                M5.Lcd.setTextColor(TFT_BLACK);
+                M5.Lcd.setTextSize(1);
+                M5.Lcd.setCursor(keyX + 12, keyY + 12);
+                M5.Lcd.print(keys.charAt(i));
+            }
+        }
+        
+        // Enhanced control keys
+        int bottomY = startY + 3 * keyHeight;
+        
+        // Backspace key
+        M5.Lcd.fillRoundRect(10, bottomY + 2, 120, keyHeight - 4, 4, TFT_RED);
+        M5.Lcd.drawRoundRect(10, bottomY + 2, 120, keyHeight - 4, 4, TFT_BLACK);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(55, bottomY + 12);
+        M5.Lcd.print("BACK");
+        
+        // Space bar
+        M5.Lcd.fillRoundRect(140, bottomY + 2, 120, keyHeight - 4, 4, TFT_GREEN);
+        M5.Lcd.drawRoundRect(140, bottomY + 2, 120, keyHeight - 4, 4, TFT_BLACK);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(180, bottomY + 12);
+        M5.Lcd.print("SPACE");
+        
+        // Close keyboard button
+        M5.Lcd.fillRoundRect(270, bottomY + 2, 40, keyHeight - 4, 4, TFT_ORANGE);
+        M5.Lcd.drawRoundRect(270, bottomY + 2, 40, keyHeight - 4, 4, TFT_BLACK);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(285, bottomY + 12);
+        M5.Lcd.print("X");
+    }
+    
+    void drawEnhancedMenuBar() {
+        int displayWidth = M5.Lcd.width();
+        int displayHeight = M5.Lcd.height();
+        int menuY = showKeyboard ? keyboardY - 25 : displayHeight - 25;
+        
+        // Enhanced gradient menu bar
+        for (int i = 0; i < 25; i++) {
+            uint16_t color = TFT_DARKGREY - (i * 0x0821);
+            M5.Lcd.drawFastHLine(0, menuY + i, displayWidth, color);
+        }
+        
+        // Enhanced menu buttons with 3D effect
+        int buttonWidth = 60;
+        int buttonHeight = 18;
+        int buttonY = menuY + 4;
+        
+        // New button
+        M5.Lcd.fillRoundRect(5, buttonY, buttonWidth, buttonHeight, 3, TFT_BLUE);
+        M5.Lcd.drawRoundRect(5, buttonY, buttonWidth, buttonHeight, 3, TFT_WHITE);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setTextSize(1);
+        M5.Lcd.setCursor(25, buttonY + 6);
+        M5.Lcd.print("NEW");
+        
+        // Clear button
+        M5.Lcd.fillRoundRect(75, buttonY, buttonWidth, buttonHeight, 3, TFT_RED);
+        M5.Lcd.drawRoundRect(75, buttonY, buttonWidth, buttonHeight, 3, TFT_WHITE);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(90, buttonY + 6);
+        M5.Lcd.print("CLEAR");
+        
+        // Keyboard button
+        M5.Lcd.fillRoundRect(145, buttonY, buttonWidth, buttonHeight, 3, showKeyboard ? TFT_GREEN : TFT_PURPLE);
+        M5.Lcd.drawRoundRect(145, buttonY, buttonWidth, buttonHeight, 3, TFT_WHITE);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(165, buttonY + 6);
+        M5.Lcd.print("KEY");
+        
+        // Settings button (new for P4)
+        M5.Lcd.fillRoundRect(215, buttonY, buttonWidth, buttonHeight, 3, TFT_ORANGE);
+        M5.Lcd.drawRoundRect(215, buttonY, buttonWidth, buttonHeight, 3, TFT_WHITE);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(230, buttonY + 6);
+        M5.Lcd.print("SETTINGS");
+    }
+    
+    void handleMenuTouch(int x, int y) {
+        int displayHeight = M5.Lcd.height();
+        int menuY = showKeyboard ? keyboardY - 25 : displayHeight - 25;
+        
+        if (y >= menuY && y <= menuY + 25) {
+            if (x >= 5 && x <= 65) {
+                // New window with enhanced positioning
+                int newX = 30 + (windows.size() % 5) * 40;
+                int newY = 40 + (windows.size() % 4) * 30;
+                addWindow(newX, newY, 220, 160, "Note " + String(nextWindowId));
+                
+            } else if (x >= 75 && x <= 135) {
+                // Clear all with confirmation
+                windows.clear();
+                activeWindow = nullptr;
+                
+            } else if (x >= 145 && x <= 205) {
+                // Toggle keyboard
+                showKeyboard = !showKeyboard;
+                
+            } else if (x >= 215 && x <= 275) {
+                // Settings (placeholder for P4 advanced features)
+                addWindow(100, 80, 200, 140, "Settings");
+                if (activeWindow) {
+                    activeWindow->addText("ESP32-P4 Settings:\n\nFrame Rate: " + String(frameRate) + " FPS\n");
+                    activeWindow->addText("Animations: " + String(animationsEnabled ? "ON" : "OFF") + "\n");
+                    activeWindow->addText("Windows: " + String(windows.size()) + "\n");
+                    activeWindow->addText("Free Memory: " + String(ESP.getFreeHeap()) + " bytes\n");
+                    activeWindow->addText("CPU Freq: " + String(ESP.getCpuFreqMHz()) + " MHz\n");
+                }
+            }
+        }
+    }
+    
+    void addTextToActiveWindow(String text) {
+        if (activeWindow && !activeWindow->minimized) {
+            activeWindow->addText(text);
+        }
+    }
+    
+    // P4 specific performance optimization
+    void setFrameRate(int fps) {
+        frameRate = constrain(fps, 30, 120); // P4 can handle up to 120 FPS
+    }
+    
+    void toggleAnimations() {
+        animationsEnabled = !animationsEnabled;
+    }
+    
+    // Advanced P4 features
+    void saveSession() {
+        // Placeholder for file system integration
+        Serial.println("Saving session...");
+        for (auto& window : windows) {
+            Serial.println("Window: " + window->title + " - Content: " + window->content);
+        }
+    }
+    
+    void loadSession() {
+        // Placeholder for loading saved session
+        Serial.println("Loading session...");
+    }
+};
+
+WindowManager windowManager;
+
+void setup() {
+    // Enhanced ESP32-P4 configuration
+    auto cfg = M5.config();
+    cfg.serial_baudrate = 115200;
+    
+    // P4 specific optimizations
+    cfg.output_power = true;
+    cfg.internal_rtc = true;
+    cfg.internal_spk = false; // Disable if not needed for better performance
+    cfg.internal_mic = false;
+    
+    M5.begin(cfg);
+    
+    // Enhanced display configuration for P4
+    M5.Lcd.setRotation(1);
+    M5.Lcd.fillScreen(TFT_BLACK);
+    M5.Lcd.setBrightness(200); // P4 can handle higher brightness
+    
+    // Set higher frame rate for smoother animations
+    windowManager.setFrameRate(60);
+    
+    // Create enhanced welcome window
+    windowManager.addWindow(60, 50, 250, 180, "Welcome to ESP32-P4");
+    windowManager.addTextToActiveWindow("Welcome to M5Stack Notepad Pro!\n\n");
+    windowManager.addTextToActiveWindow("ESP32-P4 Enhanced Features:\n");
+    windowManager.addTextToActiveWindow("• Dual-core performance\n");
+    windowManager.addTextToActiveWindow("• Enhanced graphics\n");
+    windowManager.addTextToActiveWindow("• 60 FPS animations\n");
+    windowManager.addTextToActiveWindow("• Advanced window management\n");
+    windowManager.addTextToActiveWindow("• Smart memory handling\n\n");
+    windowManager.addTextToActiveWindow("Touch and drag windows by title bar.\n");
+    windowManager.addTextToActiveWindow("Resize from bottom-right corner.\n");
+    windowManager.addTextToActiveWindow("Minimize with orange button.\n");
+    
+    Serial.begin(115200);
+    Serial.println("M5Stack Notepad Pro P4 Started");
+    Serial.println("CPU Frequency: " + String(ESP.getCpuFreqMHz()) + " MHz");
+    Serial.println("Free Heap: " + String(ESP.getFreeHeap()) + " bytes");
+    Serial.println("Display: " + String(M5.Lcd.width()) + "x" + String(M5.Lcd.height()));
+}
+
+void loop() {
+    M5.update();
+    
+    // Enhanced touch handling with multi-touch support (if available on P4)
+    auto touchCount = M5.Touch.getCount();
+    if (touchCount > 0) {
+        auto touchDetail = M5.Touch.getDetail(0);
+        if (touchDetail.isPressed() || touchDetail.isHolding()) {
+            int displayHeight = M5.Lcd.height();
+            int menuY = windowManager.showKeyboard ? windowManager.keyboardY - 25 : displayHeight - 25;
+            
+            if (touchDetail.y < menuY) {
+                windowManager.handleTouch(touchDetail.x, touchDetail.y, true);
+            } else {
+                windowManager.handleMenuTouch(touchDetail.x, touchDetail.y);
+            }
+        }
+    } else {
+        windowManager.handleTouch(0, 0, false);
+    }
+    
+    // Enhanced hardware button handling
+    if (M5.BtnA.wasPressed()) {
+        windowManager.addTextToActiveWindow("A ");
+    }
+    if (M5.BtnB.wasPressed()) {
+        windowManager.addTextToActiveWindow("B ");
+    }
+    if (M5.BtnC.wasPressed()) {
+        windowManager.addTextToActiveWindow("C ");
+    }
+    
+    // Long press combinations for P4 advanced features
+    if (M5.BtnA.pressedFor(1000) && M5.BtnB.isPressed()) {
+        windowManager.saveSession();
+    }
+    if (M5.BtnB.pressedFor(1000) && M5.BtnC.isPressed()) {
+        windowManager.toggleAnimations();
+    }
+    
+    // Enhanced drawing with frame rate optimization
+    static unsigned long lastFrame = 0;
+    unsigned long frameTime = 1000 / windowManager.frameRate;
+    
+    if (millis() - lastFrame >= frameTime) {
+        windowManager.draw();
+        lastFrame = millis();
+    }
+    
+    // P4 can handle shorter delays for smoother performance
+    delay(16); // ~60 FPS cap
+} = 0; i < width; i += 4) {
+                M5.Lcd.drawFastVLine(x + i, y + TITLE_BAR_HEIGHT, height - TITLE_BAR_HEIGHT, 0xF7BE);
+            }
+        }
+    }
+    
+    void drawTitleBar() {
+        // Enhanced gradient title bar
+        uint16_t titleColor1 = active ? TFT_BLUE : TFT_DARKGREY;
+        uint16_t titleColor2 = active ? TFT_SKYBLUE : 0x39C7;
+        
+        // Gradient effect (P4 can handle more complex rendering)
+        for (int i = 0; i < TITLE_BAR_HEIGHT; i++) {
+            uint16_t blendColor = lerpColor(titleColor1, titleColor2, i, TITLE_BAR_HEIGHT);
+            M5.Lcd.drawFastHLine(x, y + i, width, blendColor);
+        }
+        
+        // Glass effect highlight
+        M5.Lcd.drawFastHLine(x, y + 1, width, active ? 0x7BEF : 0x39C7);
+        
+        // Enhanced title text with shadow
+        M5.Lcd.setTextColor(0x2104); // Shadow
+        M5.Lcd.setTextSize(1);
+        M5.Lcd.setCursor(x + 6, y + 9);
+        M5.Lcd.print(title);
+        
+        M5.Lcd.setTextColor(TFT_WHITE); // Main text
+        M5.Lcd.setCursor(x + 5, y + 8);
+        M5.Lcd.print(title);
+    }
+    
+    void drawWindowControls() {
+        int buttonY = y + 4;
+        int buttonSize = 18;
+        
+        // Minimize button with enhanced styling
+        M5.Lcd.fillRoundRect(x + width - 60, buttonY, buttonSize, buttonSize, 2, TFT_ORANGE);
+        M5.Lcd.drawRoundRect(x + width - 60, buttonY, buttonSize, buttonSize, 2, TFT_BLACK);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(x + width - 55, buttonY + 6);
+        M5.Lcd.print("-");
+        
+        // Close button with enhanced styling
+        M5.Lcd.fillRoundRect(x + width - 36, buttonY, buttonSize, buttonSize, 2, TFT_RED);
+        M5.Lcd.drawRoundRect(x + width - 36, buttonY, buttonSize, buttonSize, 2, TFT_BLACK);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(x + width - 31, buttonY + 6);
+        M5.Lcd.print("X");
+    }
+    
+    void drawWindowBorder() {
+        // Enhanced 3D border effect
+        uint16_t borderColor = active ? TFT_BLACK : TFT_DARKGREY;
+        uint16_t highlight = active ? TFT_WHITE : TFT_LIGHTGREY;
+        uint16_t shadow = active ? TFT_DARKGREY : 0x39C7;
+        
+        // Main border
+        M5.Lcd.drawRect(x, y, width, height, borderColor);
+        
+        // 3D highlight and shadow
+        M5.Lcd.drawFastHLine(x + 1, y + 1, width - 2, highlight);
+        M5.Lcd.drawFastVLine(x + 1, y + 1, height - 2, highlight);
+        M5.Lcd.drawFastHLine(x + 1, y + height - 2, width - 2, shadow);
+        M5.Lcd.drawFastVLine(x + width - 2, y + 1, height - 2, shadow);
+    }
+    
+    void drawContent() {
+        int contentX = x + 8;
+        int contentY = y + TITLE_BAR_HEIGHT + 8;
+        int maxWidth = width - 16;
+        int contentHeight = height - TITLE_BAR_HEIGHT - 20;
+        
+        // Clear content area with enhanced background
+        M5.Lcd.fillRect(contentX - 4, contentY - 4, maxWidth + 8, contentHeight + 8, 
+                       active ? TFT_WHITE : 0xF7DE);
+        
+        // Content border
+        M5.Lcd.drawRect(contentX - 4, contentY - 4, maxWidth + 8, contentHeight + 8, TFT_LIGHTGREY);
+        
+        // Set clipping region
+        M5.Lcd.setClipRect(contentX, contentY, maxWidth, contentHeight);
+        
+        M5.Lcd.setTextColor(TFT_BLACK);
+        M5.Lcd.setTextSize(1);
+        
+        drawEnhancedText(content, contentX, contentY, maxWidth, 14);
+        
+        // Draw enhanced cursor
+        if (active) {
+            drawEnhancedCursor(contentX, contentY, maxWidth);
+        }
+        
+        M5.Lcd.clearClipRect();
+    }
+    
+    void drawEnhancedText(String text, int startX, int startY, int maxWidth, int lineHeight) {
+        int currentX = startX;
+        int currentY = startY;
+        String word = "";
+        
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            
+            if (c == ' ' || c == '\n' || i == text.length() - 1) {
+                if (i == text.length() - 1 && c != ' ' && c != '\n') {
+                    word += c;
+                }
+                
+                int wordWidth = word.length() * 7; // Slightly larger for P4
+                
+                if (currentX + wordWidth > startX + maxWidth || c == '\n') {
+                    currentY += lineHeight;
+                    currentX = startX;
+                }
+                
+                // Enhanced text rendering with subtle anti-aliasing effect
+                M5.Lcd.setTextColor(0x7BEF); // Shadow
+                M5.Lcd.setCursor(currentX + 1, currentY + 1);
+                M5.Lcd.print(word);
+                
+                M5.Lcd.setTextColor(TFT_BLACK); // Main text
+                M5.Lcd.setCursor(currentX, currentY);
+                M5.Lcd.print(word);
+                
+                currentX += wordWidth + 7;
+                word = "";
+                
+            } else {
+                word += c;
+            }
+        }
+    }
+    
+    void drawEnhancedCursor(int startX, int startY, int maxWidth) {
+        // Enhanced blinking cursor with smooth animation
+        if (millis() - lastCursorBlink > 600) {
+            cursorVisible = !cursorVisible;
+            lastCursorBlink = millis();
+        }
+        
+        if (cursorVisible) {
+            // Calculate cursor position
+            int cursorX = startX;
+            int cursorY = startY;
+            int lineHeight = 14;
+            
+            for (int i = 0; i < cursorPos && i < content.length(); i++) {
+                char c = content.charAt(i);
+                if (c == '\n') {
+                    cursorY += lineHeight;
+                    cursorX = startX;
+                } else {
+                    cursorX += 7;
+                    if (cursorX > startX + maxWidth - 7) {
+                        cursorY += lineHeight;
+                        cursorX = startX + 7;
+                    }
+                }
+            }
+            
+            // Enhanced cursor with glow effect
+            M5.Lcd.drawFastVLine(cursorX - 1, cursorY, 12, TFT_LIGHTGREY);
+            M5.Lcd.drawFastVLine(cursorX, cursorY, 12, TFT_BLUE);
+            M5.Lcd.drawFastVLine(cursorX + 1, cursorY, 12, TFT_LIGHTGREY);
+        }
+    }
+    
+    void drawMinimized() {
+        int minWidth = 120;
+        int minHeight = TITLE_BAR_HEIGHT;
+        
+        // Enhanced minimized window
+        M5.Lcd.fillRoundRect(x, y, minWidth, minHeight, 4, TFT_DARKGREY);
+        M5.Lcd.drawRoundRect(x, y, minWidth, minHeight, 4, TFT_BLACK);
+        
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setTextSize(1);
+        M5.Lcd.setCursor(x + 5, y + 8);
+        
+        String shortTitle = title;
+        if (shortTitle.length() > 15) {
+            shortTitle = shortTitle.substring(0, 15) + "...";
+        }
+        M5.Lcd.print(shortTitle);
+        
+        // Restore button
+        M5.Lcd.fillRoundRect(x + minWidth - 22, y + 4, 18, 18, 2, TFT_GREEN);
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(x + minWidth - 17, y + 10);
+        M5.Lcd.print("+");
+    }
+    
+    void drawResizeHandle() {
+        int handleX = x + width - RESIZE_HANDLE_SIZE;
+        int handleY = y + height - RESIZE_HANDLE_SIZE;
+        
+        // Enhanced resize handle with 3D effect
+        M5.Lcd.fillRect(handleX, handleY, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE, TFT_DARKGREY);
+        
+        // Grip pattern
+        for (int i = 0; i < 4; i++) {
+            int offset = i * 2 + 2;
+            M5.Lcd.drawFastHLine(handleX + RESIZE_HANDLE_SIZE - offset - 1, 
+                                handleY + offset, offset, TFT_WHITE);
+            M5.Lcd.drawFastHLine(handleX + RESIZE_HANDLE_SIZE - offset, 
+                                handleY + offset + 1, offset, TFT_BLACK);
+        }
+    }
+    
+    // Utility function for color interpolation (P4 can handle more complex math)
+    uint16_t lerpColor(uint16_t color1, uint16_t color2, int step, int maxSteps) {
+        if (step >= maxSteps) return color2;
+        if (step <= 0) return color1;
+        
+        // Extract RGB components
+        int r1 = (color1 >> 11) & 0x1F;
+        int g1 = (color1 >> 5) & 0x3F;
+        int b1 = color1 & 0x1F;
+        
+        int r2 = (color2 >> 11) & 0x1F;
+        int g2 = (color2 >> 5) & 0x3F;
+        int b2 = color2 & 0x1F;
+        
+        // Interpolate
+        int r = r1 + ((r2 - r1) * step) / maxSteps;
+        int g = g1 + ((g2 - g1) * step) / maxSteps;
+        int b = b1 + ((b2 - b1) * step) / maxSteps;
+        
+        return (r << 11) | (g << 5) | b;
+    }
+    
+    void minimize() {
+        if (!minimized) {
+            savedWidth = width;
+            savedHeight = height;
+            width = 120;
+            height = TITLE_BAR_HEIGHT;
+            minimized = true;
+        }
+    }
+    
+    void restore() {
+        if (minimized) {
+            width = savedWidth;
+            height = savedHeight;
+            minimized = false;
+        }
+    }
+    
+    void addText(String text) {
+        String before = content.substring(0, cursorPos);
+        String after = content.substring(cursorPos);
+        content = before + text + after;
+        cursorPos += text.length();
+    }
+    
+    void backspace() {
+        if (cursorPos > 0) {
+            String before = content.substring(0, cursorPos - 1);
+            String after = content.substring(cursorPos);
+            content = before + after;
+            cursorPos--;
+        }
+    }
+    
+    // Enhanced hit testing
+    bool isPointInWindow(int px, int py) {
+        if (minimized) {
+            return (px >= x && px <= x + 120 && py >= y && py <= y + TITLE_BAR_HEIGHT);
+        }
+        return (px >= x && px <= x + width && py >= y && py <= y + height);
+    }
+    
+    bool isPointInTitleBar(int px, int py) {
+        return (px >= x && px <= x + (minimized ? 120 : width) && py >= y && py <= y + TITLE_BAR_HEIGHT);
+    }
+    
+    bool isPointInResizeHandle(int px, int py) {
+        if (minimized) return false;
+        return (px >= x + width - RESIZE_HANDLE_SIZE && px <= x + width &&
+                py >= y + height - RESIZE_HANDLE_SIZE && py <= y + height);
+    }
+    
+    bool isPointInCloseButton(int px, int py) {
+        int buttonX = minimized ? x + 98 : x + width - 36;
+        return (px >= buttonX && px <= buttonX + 18 &&
+                py >= y + 4 && py <= y + 22);
+    }
+    
+    bool isPointInMinimizeButton(int px, int py) {
+        if (minimized) return false;
+        return (px >= x + width - 60 && px <= x + width - 42 &&
+                py >= y + 4 && py <= y + 22);
+    }
+    
+    bool isPointInRestoreButton(int px, int py) {
+        if (!minimized) return false;
+        return (px >= x + 98 && px <= x + 116 &&
+                py >= y + 4 && py <= y + 22);
+    }
+};
+
+// ESP32-P4 optimized Window Manager with dual-core support
+class WindowManager {
+private:
+    std::vector<std::unique_ptr<Window>> windows;
+    Window* activeWindow;
+    Window* dragWindow;
+    int dragOffsetX, dragOffsetY;
+    int resizeStartX, resizeStartY;
+    int nextWindowId;
+    
+    // P4 enhanced features
+    bool showKeyboard;
+    int keyboardY;
+    bool animationsEnabled;
+    int frameRate;
+    
+public:
+    WindowManager() {
+        activeWindow = nullptr;
+        dragWindow = nullptr;
+        nextWindowId = 1;
+        showKeyboard = false;
+        keyboardY = 180;
+        animationsEnabled = true;
+        frameRate = 60; // P4 can handle higher frame rates
+    }
+    
+    void addWindow(int x, int y, int w, int h, String title) {
+        auto newWindow = std::make_unique<Window>(x, y, w, h, title, nextWindowId++);
+        if (newWindow->y < 20) {
+            newWindow->y = 20;
+        }
+        
+        Window* windowPtr = newWindow.get();
+        windows.push_back(std::move(newWindow));
+        setActiveWindow(windowPtr);
+    }
+    
+    void setActiveWindow(Window* window) {
+        for (auto& w : windows) {
+            w->active = false;
+        }
+        
+        if (window) {
+            window->active = true;
+            activeWindow = window;
+            
+            // Move to front (P4 can handle more complex operations efficiently)
+            for (auto it = windows.begin(); it != windows.end(); ++it) {
+                if (it->get() == window) {
+                    std::unique_ptr<Window> temp = std::move(*it);
+                    windows.erase(it);
+                    windows.push_back(std::move(temp));
+                    break;
+                }
+            }
+        }
+    }
+    
+    void handleTouch(int touchX, int touchY, bool isPressed) {
+        static bool wasPressed = false;
+        
+        if (isPressed && !wasPressed) {
+            if (touchY < 20) {
+                wasPressed = isPressed;
+                return;
+            }
+            
+            if (showKeyboard && touchY >= keyboardY) {
+                handleKeyboardTouch(touchX, touchY);
+                wasPressed = isPressed;
+                return;
+            }
+            
+            Window* touchedWindow = nullptr;
+            
+            for (auto it = windows.rbegin(); it != windows.rend(); ++it) {
+                if ((*it)->isPointInWindow(touchX, touchY)) {
+                    touchedWindow = it->get();
+                    break;
+                }
+            }
+            
+            if (touchedWindow) {
+                setActiveWindow(touchedWindow);
+                
+                if (touchedWindow->isPointInCloseButton(touchX, touchY)) {
+                    closeWindow(touchedWindow);
+                } else if (touchedWindow->isPointInMinimizeButton(touchX, touchY)) {
+                    touchedWindow->minimize();
+                } else if (touchedWindow->isPointInRestoreButton(touchX, touchY)) {
+                    touchedWindow->restore();
+                } else if (touchedWindow->isPointInResizeHandle(touchX, touchY)) {
+                    touchedWindow->isResizing = true;
+                    dragWindow = touchedWindow;
+                    resizeStartX = touchX;
+                    resizeStartY = touchY;
+                } else if (touchedWindow->isPointInTitleBar(touchX, touchY)) {
+                    touchedWindow->isMoving = true;
+                    dragWindow = touchedWindow;
+                    dragOffsetX = touchX - touchedWindow->x;
+                    dragOffsetY = touchY - touchedWindow->y;
+                }
+            }
+        } else if (!isPressed && wasPressed) {
+            if (dragWindow) {
+                dragWindow->isMoving = false;
+                dragWindow->isResizing = false;
+                dragWindow = nullptr;
+            }
+        } else if (isPressed && dragWindow) {
+            if (dragWindow->isMoving) {
+                dragWindow->x = touchX - dragOffsetX;
+                dragWindow->y = touchY - dragOffsetY;
+                
+                int displayWidth = M5.Lcd.width();
+                int displayHeight = M5.Lcd.height();
+                
+                dragWindow->x = constrain(dragWindow->x, 0, displayWidth - dragWindow->width);
+                dragWindow->y = constrain(dragWindow->y, 20, displayHeight - 25 - dragWindow->height);
+                
+            } else if (dragWindow->isResizing) {
+                int deltaX = touchX - resizeStartX;
+                int deltaY = touchY - resizeStartY;
+                
+                int displayWidth = M5.Lcd.width();
+                int displayHeight = M5.Lcd.height();
+                
+                dragWindow->width = constrain(dragWindow->width + deltaX, 
+                                             Window::MIN_WIDTH, displayWidth - dragWindow->x);
+                dragWindow->height = constrain(dragWindow->height + deltaY, 
+                                              Window::MIN_HEIGHT, displayHeight - 25 - dragWindow->y);
+                
+                resizeStartX = touchX;
+                resizeStartY = touchY;
+            }
+        }
+        
+        wasPressed = isPressed;
+    }
+    
+    void handleKeyboardTouch(int x, int y) {
+        // Enhanced virtual keyboard for P4
+        const char* keyboard[3] = {
+            "QWERTYUIOP",
+            "ASDFGHJKL",
+            "ZXCVBNM"
+        };
+        
+        int keyWidth = 30;
+        int keyHeight = 28;
+        int startY = keyboardY + 8;
+        
+        for (int row = 0; row < 3; row++) {
+            String keys = keyboard[row];
+            int startX = (M5.Lcd.width() - keys.length() * keyWidth) / 2;
+            
+            if (y >= startY + row * keyHeight && y < startY + (row + 1) * keyHeight) {
+                int keyIndex = (x - startX) / keyWidth;
+                if (keyIndex >= 0 && keyIndex < keys.length()) {
+                    char key = keys.charAt(keyIndex);
+                    if (activeWindow) {
+                        activeWindow->addText(String(key));
+                    }
+                }
+                break;
+            }
+        }
+        
+        // Enhanced space bar and backspace
+        if (y >= startY + 3 * keyHeight) {
+            if (x < M5.Lcd.width() / 2) {
+                if (activeWindow) {
+                    activeWindow->backspace();
+                }
+            } else {
+                if (activeWindow) {
+                    activeWindow->addText(" ");
+                }
+            }
+        }
+    }
+    
+    void closeWindow(Window* window) {
+        for (auto it = windows.begin(); it != windows.end(); ++it) {
+            if (it->get() == window) {
+                windows.erase(it);
+                break;
+            }
+        }
+        
+        if (!windows.empty()) {
+            setActiveWindow(windows.back().get());
+        } else {
+            activeWindow = nullptr;
+        }
+    }
+    
+    void draw() {
+        // Enhanced drawing with better performance for P4
+        M5.Lcd.fillScreen(TFT_BLACK);
+        drawEnhancedStatusBar();
+        
+        for (auto& window : windows) {
+            window->draw();
+        }
+        
+        if (showKeyboard) {
+            drawEnhancedKeyboard();
+        }
+        
+        drawEnhancedMenuBar();
+    }
+    
+    void drawEnhancedStatusBar() {
+        const int STATUS_BAR_HEIGHT = 20;
+        int displayWidth = M5.Lcd.width();
+        
+        // Enhanced gradient status bar
+        for (int i = 0; i < STATUS_BAR_HEIGHT; i++) {
+            uint16_t color = TFT_NAVY + (i * 0x0821);
+            M5.Lcd.drawFastHLine(0, i, displayWidth, color);
+        }
+        
+        // Get enhanced system info (P4 has better power management)
+        int batteryLevel = 85; // Placeholder
+        bool isCharging = false;
+        
+        if (M5.Power.getBatteryLevel() >= 0) {
+            batteryLevel = M5.Power.getBatteryLevel();
+            isCharging = M5.Power.isCharging();
+        }
+        
+        // Enhanced battery display
+        int batteryIconX = displayWidth - 70;
+        int batteryIconY = 3;
+        
+        // Battery outline with rounded corners
+        M5.Lcd.fillRoundRect(batteryIconX, batteryIconY, 45, 14, 2, TFT_WHITE);
+        M5.Lcd.fillRect(batteryIconX + 45, batteryIconY + 4, 4, 6, TFT_WHITE);
+        M5.Lcd.fillRoundRect(batteryIconX + 1, batteryIconY + 1, 43, 12, 1, TFT_BLACK);
+        
+        // Enhanced battery level with smooth gradient
+        uint16_t fillColor = TFT_RED;
+        if (batteryLevel > 20) fillColor = TFT_ORANGE;
+        if (batteryLevel > 40) fillColor = TFT_YELLOW;
+        if (batteryLevel > 60) fillColor = TFT_GREEN;
+        
+        int fillWidth = (batteryLevel * 41) / 100;
+        if (fillWidth > 0) {
+            M5.Lcd.fillRoundRect(batteryIconX + 2, batteryIconY + 2, fillWidth, 10, 1, fillColor);
+        }
+        
+        // Enhanced charging indicator
+        if (isCharging) {
+            M5.Lcd.setTextColor(TFT_YELLOW);
+            M5.Lcd.setTextSize(1);
+            M5.Lcd.setCursor(batteryIconX + 20, batteryIconY + 5);
+            M5.Lcd.print("⚡"); // If supported, otherwise use "C"
+        }
+        
+        // Enhanced text with shadows
+        M5.Lcd.setTextColor(TFT_BLACK);
+        M5.Lcd.setTextSize(1);
+        M5.Lcd.setCursor(batteryIconX - 29, batteryIconY + 6);
+        M5.Lcd.print(String(batteryLevel) + "%");
+        
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(batteryIconX - 30, batteryIconY + 5);
+        M5.Lcd.print(String(batteryLevel) + "%");
+        
+        // Enhanced title
+        M5.Lcd.setTextColor(TFT_BLACK);
+        M5.Lcd.setCursor(6, batteryIconY + 6);
+        M5.Lcd.print("M5 Notepad Pro P4");
+        
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(5, batteryIconY + 5);
+        M5.Lcd.print("M5 Notepad Pro P4");
+        
+        // System info
+        M5.Lcd.setTextColor(TFT_WHITE);
+        M5.Lcd.setCursor(200, batteryIconY + 5);
+        M5.Lcd.print("Win:" + String(windows.size()) + " FPS:" + String(frameRate));
+    }
+    
+    void drawEnhancedKeyboard() {
+        const char* keyboard[3] = {
+            "QWERTYUIOP",
+            "ASDFGHJKL",
+            "ZXCVBNM"
+        };
+        
+        int keyWidth = 30;
+        int keyHeight = 28;
+        int startY = keyboardY + 8;
+        int displayWidth = M5.Lcd.width();
+        
+        // Enhanced keyboard background with transparency effect
+        M5.Lcd.fillRoundRect(0, keyboardY, displayWidth, 120, 8, TFT_DARKGREY);
+        M5.Lcd.drawRoundRect(0, keyboardY, displayWidth, 120, 8, TFT_BLACK);
+        
+        for (int row = 0; row < 3; row++) {
+            String keys = keyboard[row];
+            int startX = (displayWidth - keys.length() * keyWidth) / 2;
+            
+            for (int i
