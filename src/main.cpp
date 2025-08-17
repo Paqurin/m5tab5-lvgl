@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "system/os_manager.h"
+#include "apps/app_integration.h"
 
 #if LV_COLOR_DEPTH != 16
 #error "LV_COLOR_DEPTH should be 16 for M5Stack displays"
@@ -65,13 +66,16 @@ public:
                     "✓ HAL Manager\n"
                     "✓ UI Manager\n"
                     "✓ App Manager\n"
-                    "✓ Service Manager\n\n"
+                    "✓ Service Manager\n"
+                    "✓ Modular App System\n\n"
+                    "Installed Apps: %d\n"
                     "All systems operational!",
                     OS_VERSION_STRING,
                     OS().getUptime() / 1000,
                     OS().getFreeHeap() / 1024,
                     ESP.getFreePsram() / (1024 * 1024),
-                    getRuntime() / 1000);
+                    getRuntime() / 1000,
+                    AppIntegration::getModularAppManager().getInstalledApps().size());
                 
                 lv_label_set_text(m_label, text);
             }
@@ -145,10 +149,19 @@ void setup() {
         }
     }
 
+    // Initialize app integration system
+    result = AppIntegration::initialize(OS().getAppManager());
+    if (result != OS_OK) {
+        Serial.printf("WARNING: App integration failed: %d\n", result);
+    }
+
     // Register the demo application
     OS().getAppManager().registerApp("demo", []() -> std::unique_ptr<BaseApp> {
         return std::make_unique<DemoApp>();
     });
+
+    // Initialize modular apps
+    AppIntegration::initializeModularApps();
 
     // Start the operating system
     result = OS().start();
