@@ -16,6 +16,25 @@ A comprehensive personal assistant and productivity operating system for the M5S
 - **Connectivity**: WiFi 6 (802.11ax), Bluetooth 5.0
 - **Power**: USB-C
 
+## 🏪 App Store Server
+
+The M5Stack Tab5 now includes a complete app store server for distributing and managing applications:
+
+- **Web-Based App Store** - Modern HTML5 interface for browsing and downloading applications
+- **Docker Deployment** - One-command setup with `./docker-commands.sh setup`
+- **Package Management** - Automated .m5app package generation and distribution
+- **Health Monitoring** - Built-in health checks and status monitoring
+- **Production Ready** - Docker Compose with nginx, SSL support, and reverse proxy compatibility
+
+### Quick App Store Setup
+```bash
+cd app-store-server
+./docker-commands.sh setup
+# Access at http://localhost:8080
+```
+
+📚 **[View App Store Documentation](app-store-server/DOCKER_QUICK_START.md)** - Complete deployment guide
+
 ## 🚀 Version 4 - Personal Assistant Suite
 
 ### 📱 Complete Application Ecosystem (14 Apps)
@@ -29,7 +48,7 @@ A comprehensive personal assistant and productivity operating system for the M5S
 - 📅 **Calendar** - Event management, reminders, recurring events, iCal support
 - 💻 **Enhanced Terminal** - RS-485, Telnet, SSH with multiple sessions
 - 🔧 **RS-485 Terminal** - Industrial Modbus RTU/ASCII, device scanning
-- 📱 **Modular Apps** - APK-style dynamic loading, app store interface
+- 📱 **Modular Apps** - APK-style dynamic loading with integrated app store server
 - 🔗 **App Integration** - Inter-app communication, shared services
 
 ### 🤖 AI & Smart Features
@@ -42,6 +61,7 @@ A comprehensive personal assistant and productivity operating system for the M5S
 ### 🛠️ Enterprise-Grade Architecture
 - ✅ **Modular OS Architecture** - HAL, System, UI, Apps, Services layers
 - ✅ **Dynamic App Loading** - APK-style installation with dependency management
+- ✅ **App Store Integration** - Docker-based server for app distribution and updates
 - ✅ **Inter-App Communication** - Shared data and service APIs
 - ✅ **Memory Optimization** - 16MB Flash + 32MB PSRAM efficient usage
 - ✅ **Real-Time Performance** - RISC-V dual-core 360MHz optimization
@@ -152,6 +172,14 @@ The operating system follows a layered modular architecture:
 │   │   └── base_app.*               # Application framework
 │   └── services/          # Background services
 │       └── service_manager.* # Service management
+├── app-store-server/      # App Store Distribution Server
+│   ├── Dockerfile         # Docker container configuration
+│   ├── docker-compose.yml # Production deployment setup
+│   ├── docker-commands.sh # One-command deployment script
+│   ├── index.html         # App store web interface
+│   ├── packages/          # Application packages (.m5app files)
+│   ├── docs/              # App store documentation
+│   └── DOCKER_QUICK_START.md # Quick deployment guide
 ├── docs/
 │   ├── APPLICATIONS.md    # Complete application feature list
 │   └── APP_DEVELOPMENT_STANDARD.md # Development guidelines
