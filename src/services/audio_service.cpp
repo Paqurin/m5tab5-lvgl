@@ -41,7 +41,7 @@ os_error_t AudioService::initialize() {
 
     // Set default configuration
     m_config.outputDevice = AudioOutputDevice::AUTO;
-    m_config.volume = 50;
+    m_config.outputVolume = 50;
     m_config.autoSwitching = true;
 
     // Initial device detection
@@ -71,7 +71,7 @@ os_error_t AudioService::shutdown() {
     // Deinitialize I2S
     #ifdef CONFIG_ESP_AUDIO_SUPPORTED
     if (m_i2sInitialized) {
-        i2s_driver_uninstall(m_i2sPort);
+        i2s_driver_uninstall(m_i2sOutputPort);
         m_i2sInitialized = false;
     }
     #endif
@@ -118,7 +118,7 @@ os_error_t AudioService::configure(const AudioConfig& config) {
     m_config = config;
 
     // Apply volume setting
-    setVolume(config.volume);
+    setVolume(config.outputVolume);
 
     // Apply output device setting
     if (config.outputDevice != AudioOutputDevice::AUTO) {
@@ -191,7 +191,7 @@ os_error_t AudioService::setVolume(uint8_t volume) {
         volume = 100;
     }
 
-    m_config.volume = volume;
+    m_config.outputVolume = volume;
 
     ESP_LOGI(TAG, "Setting volume to %d%%", volume);
 
@@ -240,7 +240,7 @@ os_error_t AudioService::playBuffer(const uint8_t* data, size_t length) {
     }
 
     size_t bytesWritten;
-    esp_err_t ret = i2s_write(m_i2sPort, data, length, &bytesWritten, portMAX_DELAY);
+    esp_err_t ret = i2s_write(m_i2sOutputPort, data, length, &bytesWritten, portMAX_DELAY);
     
     if (ret == ESP_OK) {
         m_bytesPlayed += bytesWritten;
@@ -260,7 +260,7 @@ os_error_t AudioService::playBuffer(const uint8_t* data, size_t length) {
 os_error_t AudioService::stop() {
     #ifdef CONFIG_ESP_AUDIO_SUPPORTED
     if (m_i2sInitialized) {
-        i2s_stop(m_i2sPort);
+        i2s_stop(m_i2sOutputPort);
         m_state = AudioState::STOPPED;
     }
     #endif
@@ -270,7 +270,7 @@ os_error_t AudioService::stop() {
 os_error_t AudioService::pause() {
     #ifdef CONFIG_ESP_AUDIO_SUPPORTED
     if (m_i2sInitialized) {
-        i2s_stop(m_i2sPort);
+        i2s_stop(m_i2sOutputPort);
         m_state = AudioState::PAUSED;
     }
     #endif
@@ -280,7 +280,7 @@ os_error_t AudioService::pause() {
 os_error_t AudioService::resume() {
     #ifdef CONFIG_ESP_AUDIO_SUPPORTED
     if (m_i2sInitialized) {
-        i2s_start(m_i2sPort);
+        i2s_start(m_i2sOutputPort);
         m_state = AudioState::PLAYING;
     }
     #endif
@@ -290,7 +290,7 @@ os_error_t AudioService::resume() {
 void AudioService::printAudioStats() const {
     ESP_LOGI(TAG, "Audio Statistics:");
     ESP_LOGI(TAG, "  Current Device: %d", (int)m_currentOutputDevice);
-    ESP_LOGI(TAG, "  Volume: %d%%", m_config.volume);
+    ESP_LOGI(TAG, "  Volume: %d%%", m_config.outputVolume);
     ESP_LOGI(TAG, "  Muted: %s", m_muted ? "YES" : "NO");
     ESP_LOGI(TAG, "  Headphones Connected: %s", m_headphonesConnected ? "YES" : "NO");
     ESP_LOGI(TAG, "  Audio State: %d", (int)m_state);
@@ -318,7 +318,7 @@ os_error_t AudioService::initializeI2S() {
         .fixed_mclk = 0
     };
 
-    esp_err_t ret = i2s_driver_install(m_i2sPort, &i2s_config, 0, NULL);
+    esp_err_t ret = i2s_driver_install(m_i2sOutputPort, &i2s_config, 0, NULL);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to install I2S driver: %s", esp_err_to_name(ret));
         return OS_ERROR_HARDWARE;
@@ -331,10 +331,10 @@ os_error_t AudioService::initializeI2S() {
         .data_in_num = I2S_DI_PIN
     };
 
-    ret = i2s_set_pin(m_i2sPort, &pin_config);
+    ret = i2s_set_pin(m_i2sOutputPort, &pin_config);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set I2S pins: %s", esp_err_to_name(ret));
-        i2s_driver_uninstall(m_i2sPort);
+        i2s_driver_uninstall(m_i2sOutputPort);
         return OS_ERROR_HARDWARE;
     }
 
@@ -447,7 +447,7 @@ os_error_t AudioService::configureNS4150(bool enabled) {
         vTaskDelay(pdMS_TO_TICKS(10));
         
         // Apply current volume setting
-        setNS4150Volume(m_config.volume);
+        setNS4150Volume(m_config.outputVolume);
     }
 
     return OS_OK;
@@ -473,7 +473,7 @@ os_error_t AudioService::configureES8388(bool enabled) {
         writeES8388Register(ES8388_REG_DACCONTROL2, 0x02); // 16-bit samples
         
         // Apply volume
-        setES8388Volume(m_config.volume);
+        setES8388Volume(m_config.outputVolume);
         
         vTaskDelay(pdMS_TO_TICKS(10)); // Startup delay
     } else {

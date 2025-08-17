@@ -92,7 +92,8 @@ typedef enum {
     OS_ERROR_FILESYSTEM = -9,
     OS_ERROR_PERMISSION = -10,
     OS_ERROR_NOT_AVAILABLE = -11,
-    OS_ERROR_NOT_IMPLEMENTED = -12
+    OS_ERROR_NOT_IMPLEMENTED = -12,
+    OS_ERROR_NOT_INITIALIZED = -13
 } os_error_t;
 
 // Forward declarations

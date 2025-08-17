@@ -175,12 +175,39 @@
 #define ES8388_DIN_PIN          GPIO_NUM_27
 #define ES8388_DOUT_PIN         GPIO_NUM_28
 
+// I2S Pin aliases for audio service compatibility
+#define I2S_BCK_PIN             ES8388_BCLK_PIN
+#define I2S_WS_PIN              ES8388_LRCK_PIN
+#define I2S_DO_PIN              ES8388_DOUT_PIN
+#define I2S_DI_PIN              ES8388_DIN_PIN
+#define I2S_MCLK_PIN            ES8388_MCLK_PIN
+
 // Audio control pins
 #define HEADPHONE_DETECT_PIN    GPIO_NUM_29
 #define SPEAKER_EN_PIN          GPIO_NUM_30
 #define AUDIO_PWR_PIN           GPIO_NUM_31
 #define NS4150_EN_PIN           SPEAKER_EN_PIN  // NS4150 amplifier enable
 #define ES8388_PWR_PIN          AUDIO_PWR_PIN   // ES8388 power control
+
+// Dual microphone configuration
+#define DUAL_MIC_ENABLED        1
+#define MIC_PRIMARY_ENABLED     1               // Primary microphone (front-facing)
+#define MIC_SECONDARY_ENABLED   1               // Secondary microphone (noise cancellation)
+#define MIC_PDM_ENABLED         1               // PDM interface for digital microphones
+#define MIC_ANALOG_ENABLED      1               // Analog microphone via ES8388 ADC
+
+// Primary microphone (PDM) - Front-facing for voice commands
+#define MIC_PRIMARY_CLK_PIN     GPIO_NUM_45     // PDM clock
+#define MIC_PRIMARY_DATA_PIN    GPIO_NUM_46     // PDM data
+
+// Secondary microphone (PDM) - Rear-facing for noise cancellation
+#define MIC_SECONDARY_CLK_PIN   GPIO_NUM_47     // PDM clock (can share with primary)
+#define MIC_SECONDARY_DATA_PIN  GPIO_NUM_48     // PDM data
+
+// Analog microphone via ES8388 (backup/additional input)
+#define MIC_ANALOG_INPUT_PIN    ES8388_DIN_PIN  // Uses ES8388 ADC input
+#define MIC_BIAS_EN_PIN         GPIO_NUM_55     // Microphone bias enable
+#define MIC_GAIN_CTRL_PIN       GPIO_NUM_56     // Microphone gain control
 
 // RS-485 configuration
 #define RS485_ENABLED           1
@@ -191,10 +218,17 @@
 #define RS485_RTS_PIN           RS485_DE_PIN // Same as DE pin
 #define RS485_CTS_PIN           (-1)         // Not used
 
-// USB Host configuration
+// USB Host configuration (USB-A port)
 #define USB_HOST_ENABLED        1
 #define USB_HOST_DP_PIN         GPIO_NUM_36
 #define USB_HOST_DM_PIN         GPIO_NUM_37
+
+// USB-C OTG configuration
+#define USB_OTG_ENABLED         1
+#define USB_OTG_DP_PIN          GPIO_NUM_19
+#define USB_OTG_DM_PIN          GPIO_NUM_20
+#define USB_OTG_VBUS_PIN        GPIO_NUM_4   // VBUS control for power delivery
+#define USB_OTG_ID_PIN          GPIO_NUM_0   // OTG ID pin for host/device detection
 
 // Power management (PMS150G interface)
 #define PMS150G_ENABLED         1
@@ -225,7 +259,10 @@
 #define HW_HAS_CAMERA           1
 #define HW_HAS_SD_CARD          1
 #define HW_HAS_USB_HOST         1
+#define HW_HAS_USB_OTG          1
 #define HW_HAS_AUDIO            1
+#define HW_HAS_DUAL_MIC         1
+#define HW_HAS_NOISE_CANCEL     1
 #define HW_HAS_RS485            1
 #define HW_HAS_WIFI             1
 #define HW_HAS_BLE              1

@@ -79,6 +79,15 @@ enum class AudioOutputDevice {
     AUTO
 };
 
+enum class AudioInputDevice {
+    NONE,
+    MIC_PRIMARY_PDM,      // Front-facing PDM microphone
+    MIC_SECONDARY_PDM,    // Rear-facing PDM microphone  
+    MIC_DUAL_PDM,         // Both PDM microphones with noise cancellation
+    MIC_ANALOG_ES8388,    // Analog microphone via ES8388 ADC
+    MIC_AUTO              // Automatic selection based on use case
+};
+
 enum class AudioFormat {
     PCM_16BIT_44KHZ,
     PCM_16BIT_48KHZ,
@@ -95,12 +104,17 @@ enum class AudioState {
 
 struct AudioConfig {
     AudioOutputDevice outputDevice = AudioOutputDevice::AUTO;
+    AudioInputDevice inputDevice = AudioInputDevice::MIC_AUTO;
     AudioFormat format = AudioFormat::PCM_16BIT_44KHZ;
-    uint8_t volume = 50; // 0-100
+    uint8_t outputVolume = 50; // 0-100
+    uint8_t inputGain = 50;    // 0-100 microphone gain
     bool muteOnHeadphoneUnplug = true;
     bool autoSwitching = true;
+    bool noiseCancellation = true;
+    bool echoCancellation = true;
     uint32_t sampleRate = 44100;
-    uint8_t channels = 2;
+    uint8_t outputChannels = 2;
+    uint8_t inputChannels = 2; // Dual microphone support
 };
 
 class AudioService {
@@ -142,6 +156,13 @@ public:
     os_error_t setOutputDevice(AudioOutputDevice device);
 
     /**
+     * @brief Set input device (microphone)
+     * @param device Audio input device
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t setInputDevice(AudioInputDevice device);
+
+    /**
      * @brief Set volume level
      * @param volume Volume level (0-100)
      * @return OS_OK on success, error code on failure
@@ -152,7 +173,20 @@ public:
      * @brief Get current volume level
      * @return Volume level (0-100)
      */
-    uint8_t getVolume() const { return m_config.volume; }
+    uint8_t getVolume() const { return m_config.outputVolume; }
+
+    /**
+     * @brief Set microphone gain level
+     * @param gain Microphone gain level (0-100)
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t setMicrophoneGain(uint8_t gain);
+
+    /**
+     * @brief Get current microphone gain level
+     * @return Microphone gain level (0-100)
+     */
+    uint8_t getMicrophoneGain() const { return m_config.inputGain; }
 
     /**
      * @brief Mute/unmute audio
@@ -178,6 +212,12 @@ public:
      * @return Current audio output device
      */
     AudioOutputDevice getCurrentOutputDevice() const { return m_currentOutputDevice; }
+
+    /**
+     * @brief Get current input device
+     * @return Current audio input device
+     */
+    AudioInputDevice getCurrentInputDevice() const { return m_currentInputDevice; }
 
     /**
      * @brief Get audio state
@@ -212,6 +252,47 @@ public:
     os_error_t resume();
 
     /**
+     * @brief Start audio recording
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t startRecording();
+
+    /**
+     * @brief Stop audio recording
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t stopRecording();
+
+    /**
+     * @brief Read audio data from microphone
+     * @param buffer Buffer to store audio data
+     * @param length Buffer length in bytes
+     * @param bytesRead Number of bytes actually read
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t readAudioData(uint8_t* buffer, size_t length, size_t* bytesRead);
+
+    /**
+     * @brief Check if currently recording
+     * @return true if recording is active
+     */
+    bool isRecording() const { return m_recording; }
+
+    /**
+     * @brief Enable/disable noise cancellation
+     * @param enabled true to enable noise cancellation
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t setNoiseCancellation(bool enabled);
+
+    /**
+     * @brief Enable/disable echo cancellation
+     * @param enabled true to enable echo cancellation
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t setEchoCancellation(bool enabled);
+
+    /**
      * @brief Get audio statistics
      */
     void printAudioStats() const;
@@ -234,6 +315,18 @@ private:
      * @return OS_OK on success, error code on failure
      */
     os_error_t initializeES8388();
+
+    /**
+     * @brief Initialize PDM microphones
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t initializePDMMicrophones();
+
+    /**
+     * @brief Initialize I2S for microphone input
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t initializeMicrophoneI2S();
 
     /**
      * @brief Configure NS4150 amplifier
@@ -291,26 +384,65 @@ private:
      */
     os_error_t setES8388Volume(uint8_t volume);
 
+    /**
+     * @brief Configure microphone input routing
+     * @param device Input device to configure
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t configureMicrophoneInput(AudioInputDevice device);
+
+    /**
+     * @brief Set PDM microphone gain
+     * @param gain Gain level (0-100)
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t setPDMMicrophoneGain(uint8_t gain);
+
+    /**
+     * @brief Set ES8388 ADC gain
+     * @param gain Gain level (0-100)
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t setES8388ADCGain(uint8_t gain);
+
+    /**
+     * @brief Apply noise cancellation processing
+     * @param inputBuffer Input audio buffer
+     * @param outputBuffer Output processed buffer
+     * @param length Buffer length
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t applyNoiseCancellation(const uint8_t* inputBuffer, uint8_t* outputBuffer, size_t length);
+
     // Audio configuration
     AudioConfig m_config;
     AudioOutputDevice m_currentOutputDevice = AudioOutputDevice::NONE;
+    AudioInputDevice m_currentInputDevice = AudioInputDevice::NONE;
     AudioState m_state = AudioState::STOPPED;
 
     // Device states
     bool m_initialized = false;
     bool m_i2sInitialized = false;
+    bool m_microphoneI2SInitialized = false;
     bool m_ns4150Initialized = false;
     bool m_es8388Initialized = false;
+    bool m_pdmMicInitialized = false;
     bool m_headphonesConnected = false;
     bool m_muted = false;
+    bool m_recording = false;
+    bool m_noiseCancellationEnabled = false;
+    bool m_echoCancellationEnabled = false;
 
     // Hardware handles
-    i2s_port_t m_i2sPort = I2S_NUM_0;
+    i2s_port_t m_i2sOutputPort = I2S_NUM_0;  // Output I2S port
+    i2s_port_t m_i2sInputPort = I2S_NUM_1;   // Input I2S port for microphones
 
     // Statistics
     uint32_t m_bytesPlayed = 0;
+    uint32_t m_bytesRecorded = 0;
     uint32_t m_deviceSwitches = 0;
     uint32_t m_lastHeadphoneCheck = 0;
+    uint32_t m_recordingStartTime = 0;
 
     // Configuration
     static constexpr uint32_t HEADPHONE_CHECK_INTERVAL = 500; // 500ms
