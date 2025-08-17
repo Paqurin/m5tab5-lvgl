@@ -1,0 +1,77 @@
+{
+    "app": {
+        "id": "com.example.myapp",
+        "name": "My Application",
+        "version": "1.0.0",
+        "description": "A basic application template demonstrating the M5Stack Tab5 OS app development standard",
+        "author": "Your Name",
+        "email": "your.email@example.com",
+        "website": "https://your-website.com",
+        "category": "Template",
+        "tags": ["template", "example", "basic", "demo"],
+        "license": "MIT"
+    },
+    "system": {
+        "min_os_version": "1.0.0",
+        "target_platform": "m5stack-tab5",
+        "architecture": "esp32p4",
+        "api_level": 1
+    },
+    "requirements": {
+        "memory": {
+            "ram": 8192,
+            "flash": 32768,
+            "psram": 0
+        },
+        "permissions": [
+            "STORAGE_READ"
+        ],
+        "dependencies": [
+            "base_system >= 1.0.0"
+        ],
+        "optional_dependencies": [
+            "network_service >= 1.0.0"
+        ]
+    },
+    "resources": {
+        "icon": "assets/icon.png",
+        "screenshots": [
+            "assets/screenshot1.png"
+        ],
+        "assets": [
+            "assets/"
+        ],
+        "localization": [
+            "locale/en.json",
+            "locale/es.json"
+        ]
+    },
+    "build": {
+        "entry_point": "MyApp",
+        "factory_function": "createMyApp",
+        "compile_flags": ["-O2", "-DAPP_TEMPLATE"],
+        "link_libraries": [],
+        "source_files": [
+            "my_app.cpp",
+            "my_app.h"
+        ]
+    },
+    "metadata": {
+        "created": "2024-01-17",
+        "updated": "2024-01-17",
+        "sdk_version": "1.0.0",
+        "build_tools": "platformio",
+        "testing": {
+            "unit_tests": true,
+            "integration_tests": false,
+            "ui_tests": false
+        }
+    },
+    "distribution": {
+        "store_ready": true,
+        "beta_testing": false,
+        "age_rating": "all",
+        "regions": ["global"],
+        "price": "free"
+    }
+}
