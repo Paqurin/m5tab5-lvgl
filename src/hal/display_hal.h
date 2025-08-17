@@ -121,6 +121,12 @@ private:
                                  lv_color_t* color_p);
 
     /**
+     * @brief Initialize hardware (GPIO, PWM, MIPI-DSI)
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t initializeHardware();
+
+    /**
      * @brief Initialize LVGL display driver
      * @return OS_OK on success, error code on failure
      */

@@ -1,6 +1,7 @@
 #include "base_app.h"
 #include "../system/os_manager.h"
 #include <esp_log.h>
+#include <cstdarg>
 
 BaseApp::BaseApp(const std::string& id, const std::string& name, const std::string& version)
     : m_id(id), m_name(name), m_version(version) {
@@ -126,7 +127,13 @@ void BaseApp::setState(AppState state) {
     }
 }
 
-void BaseApp::log(int level, const char* message) {
-    std::string logMessage = "[" + m_name + "] " + message;
+void BaseApp::log(int level, const char* format, ...) const {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    
+    std::string logMessage = "[" + m_name + "] " + buffer;
     esp_log_write((esp_log_level_t)level, m_id.c_str(), "%s", logMessage.c_str());
 }

@@ -1,6 +1,10 @@
 #include "display_hal.h"
+#include "hardware_config.h"
 #include "../system/os_manager.h"
 #include <esp_log.h>
+#include <driver/gpio.h>
+#include <driver/ledc.h>
+#include <esp_psram.h>
 
 static const char* TAG = "DisplayHAL";
 
@@ -14,6 +18,13 @@ os_error_t DisplayHAL::initialize() {
     }
 
     ESP_LOGI(TAG, "Initializing Display HAL (%dx%d)", OS_SCREEN_WIDTH, OS_SCREEN_HEIGHT);
+
+    // Initialize hardware pins and peripherals
+    os_error_t hwResult = initializeHardware();
+    if (hwResult != OS_OK) {
+        ESP_LOGE(TAG, "Failed to initialize display hardware");
+        return hwResult;
+    }
 
     // Initialize LVGL if not already done
     if (!lv_is_initialized()) {
@@ -115,10 +126,21 @@ os_error_t DisplayHAL::setBrightness(uint8_t brightness) {
 
     m_brightness = brightness;
 
-    // TODO: Implement actual brightness control via PWM or I2C
-    // For now, just store the value
+    // Set PWM duty cycle for backlight control
+    uint32_t duty = (brightness * 255) / 255; // Convert to 8-bit PWM duty
+    esp_err_t ret = ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set PWM duty: %s", esp_err_to_name(ret));
+        return OS_ERROR_GENERIC;
+    }
+
+    ret = ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to update PWM duty: %s", esp_err_to_name(ret));
+        return OS_ERROR_GENERIC;
+    }
     
-    ESP_LOGD(TAG, "Set brightness to %d", brightness);
+    ESP_LOGD(TAG, "Set brightness to %d (PWM duty: %d)", brightness, duty);
     return OS_OK;
 }
 
@@ -240,6 +262,89 @@ os_error_t DisplayHAL::initializeLVGL() {
     ESP_LOGI(TAG, "LVGL display driver initialized (%s buffer)",
              m_buffer2 ? "double" : "single");
 
+    return OS_OK;
+}
+
+os_error_t DisplayHAL::initializeHardware() {
+    ESP_LOGI(TAG, "Initializing ESP32-P4 display hardware");
+
+    // Configure GPIO pins for display control
+    gpio_config_t io_conf = {};
+    
+    // Display reset pin
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL << DISPLAY_RST_PIN);
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    esp_err_t ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure display reset pin: %s", esp_err_to_name(ret));
+        return OS_ERROR_HARDWARE;
+    }
+
+    // Power enable pin
+    io_conf.pin_bit_mask = (1ULL << PWR_EN_PIN);
+    ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure power enable pin: %s", esp_err_to_name(ret));
+        return OS_ERROR_HARDWARE;
+    }
+
+    // Tearing effect pin (input)
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = (1ULL << DISPLAY_TE_PIN);
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure TE pin: %s", esp_err_to_name(ret));
+        return OS_ERROR_HARDWARE;
+    }
+
+    // Initialize PWM for backlight control
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_8_BIT,
+        .timer_num = LEDC_TIMER_0,
+        .freq_hz = PWM_BACKLIGHT_FREQ,
+        .clk_cfg = LEDC_AUTO_CLK
+    };
+    ret = ledc_timer_config(&ledc_timer);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure PWM timer: %s", esp_err_to_name(ret));
+        return OS_ERROR_HARDWARE;
+    }
+
+    ledc_channel_config_t ledc_channel = {
+        .gpio_num = DISPLAY_BL_PIN,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = LEDC_CHANNEL_0,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ret = ledc_channel_config(&ledc_channel);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure PWM channel: %s", esp_err_to_name(ret));
+        return OS_ERROR_HARDWARE;
+    }
+
+    // Hardware reset sequence
+    gpio_set_level(PWR_EN_PIN, 1);    // Enable power
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    gpio_set_level(DISPLAY_RST_PIN, 0); // Assert reset
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    gpio_set_level(DISPLAY_RST_PIN, 1); // Release reset
+    vTaskDelay(pdMS_TO_TICKS(DISPLAY_INIT_DELAY_MS));
+
+    // TODO: Initialize MIPI-DSI peripheral
+    // This requires ESP-IDF MIPI-DSI driver configuration
+    // For now, we'll use a placeholder
+    ESP_LOGW(TAG, "MIPI-DSI initialization not yet implemented");
+
+    ESP_LOGI(TAG, "Display hardware initialized successfully");
     return OS_OK;
 }
 

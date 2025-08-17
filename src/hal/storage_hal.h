@@ -13,14 +13,14 @@
  * and configuration storage with file system abstraction.
  */
 
-enum class StorageType {
+enum class HALStorageType {
     INTERNAL_FLASH,
     SD_CARD,
     EXTERNAL_USB
 };
 
-struct StorageInfo {
-    StorageType type;
+struct HALStorageInfo {
+    HALStorageType type;
     bool mounted;
     uint64_t totalSize;
     uint64_t freeSize;
@@ -29,7 +29,7 @@ struct StorageInfo {
     std::string filesystem;
 };
 
-struct FileInfo {
+struct HALFileInfo {
     std::string name;
     std::string path;
     uint64_t size;
@@ -73,34 +73,34 @@ public:
      * @param mountPoint Mount point path
      * @return OS_OK on success, error code on failure
      */
-    os_error_t mount(StorageType type, const char* mountPoint = nullptr);
+    os_error_t mount(HALStorageType type, const char* mountPoint = nullptr);
 
     /**
      * @brief Unmount a storage device
      * @param type Storage type to unmount
      * @return OS_OK on success, error code on failure
      */
-    os_error_t unmount(StorageType type);
+    os_error_t unmount(HALStorageType type);
 
     /**
      * @brief Check if storage is mounted
      * @param type Storage type to check
      * @return true if mounted, false otherwise
      */
-    bool isMounted(StorageType type) const;
+    bool isMounted(HALStorageType type) const;
 
     /**
      * @brief Get storage information
      * @param type Storage type
      * @return Storage information structure
      */
-    StorageInfo getStorageInfo(StorageType type) const;
+    HALStorageInfo getStorageInfo(HALStorageType type) const;
 
     /**
      * @brief Get available storage types
      * @return Vector of available storage types
      */
-    std::vector<StorageType> getAvailableStorage() const;
+    std::vector<HALStorageType> getAvailableStorage() const;
 
     /**
      * @brief Create directory
@@ -129,14 +129,14 @@ public:
      * @param path Path to query
      * @return File information or empty if not found
      */
-    FileInfo getFileInfo(const char* path) const;
+    HALFileInfo getFileInfo(const char* path) const;
 
     /**
      * @brief List directory contents
      * @param path Directory path to list
      * @return Vector of file information
      */
-    std::vector<FileInfo> listDirectory(const char* path) const;
+    std::vector<HALFileInfo> listDirectory(const char* path) const;
 
     /**
      * @brief Read file contents
@@ -177,21 +177,21 @@ public:
      * @param type Storage type
      * @return Free space in bytes
      */
-    uint64_t getFreeSpace(StorageType type) const;
+    uint64_t getFreeSpace(HALStorageType type) const;
 
     /**
      * @brief Get total space on storage
      * @param type Storage type
      * @return Total space in bytes
      */
-    uint64_t getTotalSpace(StorageType type) const;
+    uint64_t getTotalSpace(HALStorageType type) const;
 
     /**
      * @brief Format storage (WARNING: Destroys all data)
      * @param type Storage type to format
      * @return OS_OK on success, error code on failure
      */
-    os_error_t format(StorageType type);
+    os_error_t format(HALStorageType type);
 
     /**
      * @brief Sync all pending writes to storage
@@ -222,7 +222,7 @@ private:
      * @param type Storage type
      * @return Mount point string
      */
-    std::string getMountPoint(StorageType type) const;
+    std::string getMountPoint(HALStorageType type) const;
 
     /**
      * @brief Update storage statistics
@@ -230,7 +230,7 @@ private:
     void updateStorageStats();
 
     // Storage status
-    std::vector<StorageInfo> m_storageDevices;
+    std::vector<HALStorageInfo> m_storageDevices;
     bool m_initialized = false;
 
     // Statistics

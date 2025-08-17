@@ -228,9 +228,10 @@ protected:
     /**
      * @brief Log application message
      * @param level Log level
-     * @param message Message to log
+     * @param format Message format string
+     * @param ... Variable arguments for formatting
      */
-    void log(int level, const char* message);
+    void log(int level, const char* format, ...) const;
 
     // Application metadata
     std::string m_id;
@@ -245,6 +246,7 @@ protected:
     uint32_t m_startTime = 0;
     size_t m_memoryUsage = 0;
     bool m_exitRequested = false;
+    bool m_initialized = false;
 
     // UI reference
     lv_obj_t* m_uiContainer = nullptr;

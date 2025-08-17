@@ -2,6 +2,7 @@
 #define OS_CONFIG_H
 
 #include <Arduino.h>
+#include "../hal/hardware_config.h"
 
 /**
  * @file os_config.h
@@ -11,11 +12,11 @@
  * for the M5Tab5 ESP32-P4 operating system.
  */
 
-// Hardware Configuration
-#define OS_SCREEN_WIDTH         1280
-#define OS_SCREEN_HEIGHT        720
-#define OS_SCREEN_BPP           16
-#define OS_PSRAM_ENABLED        1
+// Hardware Configuration (from hardware_config.h)
+#define OS_SCREEN_WIDTH         DISPLAY_WIDTH
+#define OS_SCREEN_HEIGHT        DISPLAY_HEIGHT
+#define OS_SCREEN_BPP           DISPLAY_COLOR_DEPTH
+#define OS_PSRAM_ENABLED        HW_HAS_PSRAM
 
 // Memory Configuration
 #define OS_MAX_APPS             8
@@ -83,7 +84,9 @@ typedef enum {
     OS_ERROR_NOT_SUPPORTED = -7,
     OS_ERROR_HARDWARE = -8,
     OS_ERROR_FILESYSTEM = -9,
-    OS_ERROR_PERMISSION = -10
+    OS_ERROR_PERMISSION = -10,
+    OS_ERROR_NOT_AVAILABLE = -11,
+    OS_ERROR_NOT_IMPLEMENTED = -12
 } os_error_t;
 
 // Forward declarations

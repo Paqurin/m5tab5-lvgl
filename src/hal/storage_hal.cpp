@@ -59,9 +59,9 @@ os_error_t StorageHAL::shutdown() {
     // Unmount all storage devices
     for (const auto& storage : m_storageDevices) {
         if (storage.mounted) {
-            if (storage.type == StorageType::INTERNAL_FLASH) {
+            if (storage.type == HALStorageType::INTERNAL_FLASH) {
                 esp_vfs_spiffs_unregister(nullptr);
-            } else if (storage.type == StorageType::SD_CARD) {
+            } else if (storage.type == HALStorageType::SD_CARD) {
                 esp_vfs_fat_sdcard_unmount(storage.mountPoint.c_str(), nullptr);
             }
         }
@@ -140,7 +140,7 @@ bool StorageHAL::selfTest() {
     return allTestsPassed;
 }
 
-bool StorageHAL::isMounted(StorageType type) const {
+bool StorageHAL::isMounted(HALStorageType type) const {
     for (const auto& storage : m_storageDevices) {
         if (storage.type == type) {
             return storage.mounted;
@@ -149,7 +149,7 @@ bool StorageHAL::isMounted(StorageType type) const {
     return false;
 }
 
-StorageInfo StorageHAL::getStorageInfo(StorageType type) const {
+HALStorageInfo StorageHAL::getStorageInfo(HALStorageType type) const {
     for (const auto& storage : m_storageDevices) {
         if (storage.type == type) {
             return storage;
@@ -157,14 +157,14 @@ StorageInfo StorageHAL::getStorageInfo(StorageType type) const {
     }
     
     // Return empty info if not found
-    StorageInfo info;
+    HALStorageInfo info;
     info.type = type;
     info.mounted = false;
     return info;
 }
 
-std::vector<StorageType> StorageHAL::getAvailableStorage() const {
-    std::vector<StorageType> available;
+std::vector<HALStorageType> StorageHAL::getAvailableStorage() const {
+    std::vector<HALStorageType> available;
     for (const auto& storage : m_storageDevices) {
         if (storage.mounted) {
             available.push_back(storage.type);
@@ -193,8 +193,8 @@ bool StorageHAL::exists(const char* path) const {
     return stat(path, &st) == 0;
 }
 
-FileInfo StorageHAL::getFileInfo(const char* path) const {
-    FileInfo info;
+HALFileInfo StorageHAL::getFileInfo(const char* path) const {
+    HALFileInfo info;
     if (!path) return info;
 
     struct stat st;
@@ -209,8 +209,8 @@ FileInfo StorageHAL::getFileInfo(const char* path) const {
     return info;
 }
 
-std::vector<FileInfo> StorageHAL::listDirectory(const char* path) const {
-    std::vector<FileInfo> files;
+std::vector<HALFileInfo> StorageHAL::listDirectory(const char* path) const {
+    std::vector<HALFileInfo> files;
     if (!path) return files;
 
     DIR* dir = opendir(path);
@@ -226,7 +226,7 @@ std::vector<FileInfo> StorageHAL::listDirectory(const char* path) const {
         }
 
         std::string fullPath = std::string(path) + "/" + entry->d_name;
-        FileInfo info = getFileInfo(fullPath.c_str());
+        HALFileInfo info = getFileInfo(fullPath.c_str());
         if (!info.name.empty()) {
             files.push_back(info);
         }
@@ -360,8 +360,8 @@ os_error_t StorageHAL::initializeInternalFlash() {
     }
 
     // Add to storage devices list
-    StorageInfo info;
-    info.type = StorageType::INTERNAL_FLASH;
+    HALStorageInfo info;
+    info.type = HALStorageType::INTERNAL_FLASH;
     info.mounted = true;
     info.totalSize = total;
     info.usedSize = used;
@@ -394,7 +394,7 @@ void StorageHAL::updateStorageStats() {
     for (auto& storage : m_storageDevices) {
         if (!storage.mounted) continue;
 
-        if (storage.type == StorageType::INTERNAL_FLASH) {
+        if (storage.type == HALStorageType::INTERNAL_FLASH) {
             size_t total = 0, used = 0;
             if (esp_spiffs_info(nullptr, &total, &used) == ESP_OK) {
                 storage.totalSize = total;
