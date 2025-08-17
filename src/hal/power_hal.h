@@ -10,13 +10,8 @@
  * Manages power consumption, battery monitoring, and power states.
  */
 
-enum class PowerState {
-    ACTIVE,
-    IDLE,
-    SLEEP,
-    DEEP_SLEEP,
-    SHUTDOWN
-};
+// Forward declaration - PowerState is defined in system/power_manager.h
+enum class PowerState;
 
 enum class ChargeState {
     UNKNOWN,
@@ -162,7 +157,7 @@ private:
     void updatePowerConsumption();
 
     // Power state
-    PowerState m_currentState = PowerState::ACTIVE;
+    PowerState m_currentState; // Will be initialized in constructor
     bool m_lowPowerMode = false;
     bool m_chargingEnabled = true;
 

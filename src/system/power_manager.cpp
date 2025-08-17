@@ -352,10 +352,11 @@ os_error_t PowerManager::initializeGPIO() {
 }
 
 os_error_t PowerManager::configureSleepWakeup() {
-    // Configure EXT0 wakeup (power button)
-    esp_err_t ret = esp_sleep_enable_ext0_wakeup(PMS150G_INT_PIN, 0); // Wake on low
+    // Configure EXT1 wakeup (power button) - ESP32-P4 doesn't support EXT0
+    uint64_t ext1_mask = (1ULL << PMS150G_INT_PIN);
+    esp_err_t ret = esp_sleep_enable_ext1_wakeup(ext1_mask, ESP_EXT1_WAKEUP_ANY_LOW);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to configure EXT0 wakeup: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Failed to configure EXT1 wakeup: %s", esp_err_to_name(ret));
         return OS_ERROR_GENERIC;
     }
 

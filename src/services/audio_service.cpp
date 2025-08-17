@@ -3,7 +3,7 @@
 #include <esp_log.h>
 #include <driver/gpio.h>
 // Conditional I2C include
-#ifdef CONFIG_ESP_AUDIO_SUPPORTED
+#ifdef CONFIG_I2C_ENABLED
 #include <driver/i2c.h>
 #endif
 
@@ -375,11 +375,12 @@ os_error_t AudioService::initializeNS4150() {
 os_error_t AudioService::initializeES8388() {
     ESP_LOGI(TAG, "Initializing ES8388 audio codec");
 
+    #ifdef CONFIG_I2C_ENABLED
     // Initialize I2C for ES8388 communication
     i2c_config_t i2c_config = {
         .mode = I2C_MODE_MASTER,
-        .sda_io_num = ES8388_SDA_PIN,
-        .scl_io_num = ES8388_SCL_PIN,
+        .sda_io_num = ES8388_I2C_SDA_PIN,
+        .scl_io_num = ES8388_I2C_SCL_PIN,
         .sda_pullup_en = GPIO_PULLUP_ENABLE,
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
         .master = {
@@ -398,6 +399,9 @@ os_error_t AudioService::initializeES8388() {
         ESP_LOGE(TAG, "Failed to install I2C driver: %s", esp_err_to_name(ret));
         return OS_ERROR_HARDWARE;
     }
+    #else
+    ESP_LOGW(TAG, "I2C not supported in this build - ES8388 initialization skipped");
+    #endif
 
     // Configure ES8388 power pin
     gpio_config_t io_conf = {};
@@ -407,7 +411,7 @@ os_error_t AudioService::initializeES8388() {
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     
-    ret = gpio_config(&io_conf);
+    esp_err_t ret = gpio_config(&io_conf);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to configure ES8388 power pin: %s", esp_err_to_name(ret));
         return OS_ERROR_HARDWARE;
@@ -482,6 +486,7 @@ os_error_t AudioService::configureES8388(bool enabled) {
 }
 
 os_error_t AudioService::writeES8388Register(uint8_t reg, uint8_t data) {
+    #ifdef CONFIG_I2C_ENABLED
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (AUDIO_ES8388_I2C_ADDR << 1) | I2C_MASTER_WRITE, true);
@@ -498,6 +503,10 @@ os_error_t AudioService::writeES8388Register(uint8_t reg, uint8_t data) {
     }
     
     return OS_OK;
+    #else
+    ESP_LOGW(TAG, "I2C not supported - cannot write ES8388 register 0x%02X", reg);
+    return OS_ERROR_NOT_AVAILABLE;
+    #endif
 }
 
 os_error_t AudioService::readES8388Register(uint8_t reg, uint8_t* data) {
@@ -505,6 +514,7 @@ os_error_t AudioService::readES8388Register(uint8_t reg, uint8_t* data) {
         return OS_ERROR_INVALID_PARAM;
     }
 
+    #ifdef CONFIG_I2C_ENABLED
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (AUDIO_ES8388_I2C_ADDR << 1) | I2C_MASTER_WRITE, true);
@@ -523,6 +533,11 @@ os_error_t AudioService::readES8388Register(uint8_t reg, uint8_t* data) {
     }
     
     return OS_OK;
+    #else
+    ESP_LOGW(TAG, "I2C not supported - cannot read ES8388 register 0x%02X", reg);
+    *data = 0;
+    return OS_ERROR_NOT_AVAILABLE;
+    #endif
 }
 
 bool AudioService::checkHeadphoneConnection() {

@@ -105,6 +105,11 @@
 #define M5_BUS_SDA_PIN          GPIO_NUM_19
 #define M5_BUS_SCL_PIN          GPIO_NUM_20
 
+// SD Card SPI pins
+#define SD_SCK_PIN              SD_CLK_PIN
+#define SD_CMD_PIN              SD_MOSI_PIN
+#define SD_D0_PIN               SD_MISO_PIN
+
 // GPIO extension header
 #define GPIO_EXT_ENABLED        1
 
@@ -127,9 +132,16 @@
 #define TOUCH_INIT_DELAY_MS     200
 #define I2C_TIMEOUT_MS          1000
 
-// Memory allocation for display buffers
-#define DISPLAY_BUFFER_LINES    10     // Number of lines to buffer
+// Memory allocation for display buffers - Optimized for 32MB PSRAM
+#define DISPLAY_BUFFER_LINES    60     // Number of lines to buffer (increased for smoother rendering)
 #define DISPLAY_BUFFER_SIZE     (DISPLAY_WIDTH * DISPLAY_BUFFER_LINES * 2) // RGB565 = 2 bytes/pixel
+#define DISPLAY_DOUBLE_BUFFER   1      // Enable double buffering for smooth animations
+#define DISPLAY_FRAMEBUFFER_SIZE (DISPLAY_WIDTH * DISPLAY_HEIGHT * 2) // Full frame buffer
+
+// LVGL Memory Configuration
+#define LVGL_BUFFER_LINES       120    // Large buffer for smooth scrolling
+#define LVGL_BUFFER_SIZE        (DISPLAY_WIDTH * LVGL_BUFFER_LINES * 2)
+#define LVGL_MEM_SIZE           (8 * 1024 * 1024)  // 8MB for LVGL objects in PSRAM
 
 // Debug configuration
 #define DEBUG_SERIAL_ENABLED    1
@@ -167,6 +179,8 @@
 #define HEADPHONE_DETECT_PIN    GPIO_NUM_29
 #define SPEAKER_EN_PIN          GPIO_NUM_30
 #define AUDIO_PWR_PIN           GPIO_NUM_31
+#define NS4150_EN_PIN           SPEAKER_EN_PIN  // NS4150 amplifier enable
+#define ES8388_PWR_PIN          AUDIO_PWR_PIN   // ES8388 power control
 
 // RS-485 configuration
 #define RS485_ENABLED           1
@@ -216,5 +230,10 @@
 #define HW_HAS_WIFI             1
 #define HW_HAS_BLE              1
 #define HW_HAS_POWER_MGMT       1
+
+// Performance optimization flags
+#define PSRAM_SPEED_120MHZ      1      // Use high-speed PSRAM configuration
+#define ENABLE_PSRAM_CACHE      1      // Enable PSRAM caching for better performance
+#define DMA_BURST_SIZE          64     // Optimized DMA burst size for PSRAM
 
 #endif // HARDWARE_CONFIG_H

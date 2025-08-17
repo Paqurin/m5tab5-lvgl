@@ -1,4 +1,5 @@
 #include "power_hal.h"
+#include "../system/power_manager.h"  // For PowerState enum
 #include "../system/os_manager.h"
 #include <esp_log.h>
 #include <esp_adc/adc_oneshot.h>
@@ -135,7 +136,7 @@ os_error_t PowerHAL::setPowerState(PowerState state) {
             // Reduce CPU frequency but keep peripherals active
             break;
 
-        case PowerState::SLEEP:
+        case PowerState::LIGHT_SLEEP:
             // Light sleep mode
             break;
 
@@ -277,7 +278,7 @@ void PowerHAL::updatePowerConsumption() {
         case PowerState::IDLE:
             m_powerConsumption = basePower * 0.7f;
             break;
-        case PowerState::SLEEP:
+        case PowerState::LIGHT_SLEEP:
             m_powerConsumption = basePower * 0.3f;
             break;
         case PowerState::DEEP_SLEEP:

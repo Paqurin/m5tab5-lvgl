@@ -51,7 +51,12 @@ public:
                     "System Status:\n"
                     "Uptime: %d seconds\n"
                     "Free Heap: %d KB\n"
+                    "Free PSRAM: %d MB\n"
                     "App Runtime: %d seconds\n\n"
+                    "Hardware Config:\n"
+                    "16MB Flash / 32MB PSRAM\n"
+                    "1280×720 HD Display\n"
+                    "ESP32-P4 RISC-V 360MHz\n\n"
                     "Framework Modules:\n"
                     "✓ OS Manager\n"
                     "✓ Memory Manager\n"
@@ -65,6 +70,7 @@ public:
                     OS_VERSION_STRING,
                     OS().getUptime() / 1000,
                     OS().getFreeHeap() / 1024,
+                    ESP.getFreePsram() / (1024 * 1024),
                     getRuntime() / 1000);
                 
                 lv_label_set_text(m_label, text);
@@ -118,7 +124,16 @@ void setup() {
     Serial.println("\n" "========================================");
     Serial.println("M5Stack Tab5 LVGL test os v" OS_VERSION_STRING);
     Serial.println("ESP32-P4 Modular Operating System");
+    Serial.println("16MB Flash / 32MB PSRAM Configuration");
     Serial.println("========================================\n");
+    
+    // Print memory information
+    Serial.printf("Total heap size: %d bytes\n", ESP.getHeapSize());
+    Serial.printf("Free heap: %d bytes\n", ESP.getFreeHeap());
+    Serial.printf("PSRAM size: %d bytes\n", ESP.getPsramSize());
+    Serial.printf("Free PSRAM: %d bytes\n", ESP.getFreePsram());
+    Serial.printf("Flash size: %d bytes\n", ESP.getFlashChipSize());
+    Serial.println();
 
     // Initialize the operating system
     os_error_t result = OS().initialize();
@@ -158,6 +173,9 @@ void setup() {
     }
 
     Serial.println("M5Stack Tab5 LVGL test os startup complete!");
+    Serial.printf("Memory status after initialization:\n");
+    Serial.printf("  Free heap: %d KB\n", ESP.getFreeHeap() / 1024);
+    Serial.printf("  Free PSRAM: %d MB\n", ESP.getFreePsram() / (1024 * 1024));
     Serial.println("System is ready for operation.\n");
 }
 
