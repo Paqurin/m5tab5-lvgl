@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M5Stack Tab5 App Store - Official Applications</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="assets/favicon.ico">
+    <meta name="description" content="Official App Store for M5Stack Tab5 v4 - Download professional applications for your M5Stack Tab5 device">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <img src="assets/m5stack-logo.png" alt="M5Stack Tab5" class="logo-img">
+                <h1>M5Stack Tab5 App Store</h1>
+            </div>
+            <nav class="nav">
+                <a href="#apps" class="nav-link">Apps</a>
+                <a href="#categories" class="nav-link">Categories</a>
+                <a href="#developer" class="nav-link">Developer</a>
+                <a href="#support" class="nav-link">Support</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h2>Professional Applications for M5Stack Tab5 v4</h2>
+                    <p>Transform your M5Stack Tab5 into a powerful personal assistant and productivity device with 14 professional applications featuring AI integration, industrial connectivity, and enterprise-grade functionality.</p>
+                    <div class="hero-stats">
+                        <div class="stat">
+                            <span class="stat-number">14</span>
+                            <span class="stat-label">Professional Apps</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">AI</span>
+                            <span class="stat-label">ChatGPT Integration</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">6</span>
+                            <span class="stat-label">Languages Supported</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">15K+</span>
+                            <span class="stat-label">Lines of Code</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-device">
+                    <img src="assets/m5stack-tab5-device.png" alt="M5Stack Tab5 Device" class="device-img">
+                </div>
+            </div>
+        </section>
+
+        <section id="categories" class="categories">
+            <div class="container">
+                <h2>Application Categories</h2>
+                <div class="category-grid">
+                    <div class="category-card" data-category="personal-assistant">
+                        <div class="category-icon">🤖</div>
+                        <h3>Personal Assistant</h3>
+                        <p>AI-powered apps with ChatGPT integration</p>
+                        <span class="app-count">5 apps</span>
+                    </div>
+                    <div class="category-card" data-category="productivity">
+                        <div class="category-icon">📊</div>
+                        <h3>Productivity</h3>
+                        <p>Tools for work and daily organization</p>
+                        <span class="app-count">4 apps</span>
+                    </div>
+                    <div class="category-card" data-category="system-utility">
+                        <div class="category-icon">🛠️</div>
+                        <h3>System & Utility</h3>
+                        <p>File management and system tools</p>
+                        <span class="app-count">3 apps</span>
+                    </div>
+                    <div class="category-card" data-category="industrial">
+                        <div class="category-icon">🏭</div>
+                        <h3>Industrial IoT</h3>
+                        <p>RS-485, Modbus, and terminal apps</p>
+                        <span class="app-count">2 apps</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="apps" class="apps">
+            <div class="container">
+                <h2>Available Applications</h2>
+                <div class="filter-bar">
+                    <button class="filter-btn active" data-filter="all">All Apps</button>
+                    <button class="filter-btn" data-filter="personal-assistant">Personal Assistant</button>
+                    <button class="filter-btn" data-filter="productivity">Productivity</button>
+                    <button class="filter-btn" data-filter="system-utility">System & Utility</button>
+                    <button class="filter-btn" data-filter="industrial">Industrial IoT</button>
+                </div>
+                
+                <div class="apps-grid" id="apps-grid">
+                    <!-- Apps will be loaded here by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="container">
+                <h2>Why Choose M5Stack Tab5 v4?</h2>
+                <div class="features-grid">
+                    <div class="feature">
+                        <div class="feature-icon">🚀</div>
+                        <h3>High Performance</h3>
+                        <p>ESP32-P4 RISC-V dual-core 360MHz processor with 32MB PSRAM</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🖥️</div>
+                        <h3>HD Display</h3>
+                        <p>5-inch 1280×720 MIPI-DSI display with LVGL 8.4 graphics</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🔧</div>
+                        <h3>Enterprise Ready</h3>
+                        <p>Industrial connectivity with RS-485, Modbus, Telnet, SSH</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🤖</div>
+                        <h3>AI Integration</h3>
+                        <p>Built-in ChatGPT voice assistant with 6 language support</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">📱</div>
+                        <h3>Modular Design</h3>
+                        <p>APK-style app installation with dynamic loading</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Secure & Reliable</h3>
+                        <p>Encrypted storage and secure API key management</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="developer" class="developer">
+            <div class="container">
+                <h2>Developer Resources</h2>
+                <div class="developer-content">
+                    <div class="developer-info">
+                        <h3>Build Your Own Apps</h3>
+                        <p>Create custom applications for M5Stack Tab5 using our comprehensive development framework.</p>
+                        <ul>
+                            <li>C++17 with ESP-IDF framework</li>
+                            <li>LVGL 8.4 UI components</li>
+                            <li>BaseApp inheritance pattern</li>
+                            <li>Memory-optimized for embedded systems</li>
+                            <li>Complete documentation and examples</li>
+                        </ul>
+                        <div class="developer-actions">
+                            <a href="https://github.com/Paqurin/m5tab5-lvgl" class="btn btn-primary">View Source Code</a>
+                            <a href="docs/APP_DEVELOPMENT_STANDARD.md" class="btn btn-secondary">Development Guide</a>
+                        </div>
+                    </div>
+                    <div class="developer-code">
+                        <pre><code>// Example: Simple M5Tab5 App
+#include "base_app.h"
+
+class MyApp : public BaseApp {
+public:
+    MyApp() : BaseApp("com.example.myapp", 
+                     "My Application", "1.0.0") {}
+    
+    os_error_t initialize() override {
+        setDescription("Custom app for M5Stack Tab5");
+        setMemoryUsage(32768); // 32KB
+        return OS_OK;
+    }
+    
+    os_error_t createUI(lv_obj_t* parent) override {
+        m_container = lv_obj_create(parent);
+        lv_obj_set_size(m_container, LV_PCT(100), LV_PCT(100));
+        
+        lv_obj_t* label = lv_label_create(m_container);
+        lv_label_set_text(label, "Hello M5Stack Tab5!");
+        lv_obj_center(label);
+        
+        return OS_OK;
+    }
+};
+
+extern "C" std::unique_ptr&lt;BaseApp&gt; createMyApp() {
+    return std::make_unique&lt;MyApp&gt;();
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>M5Stack Tab5 v4</h4>
+                    <p>Professional operating system for ESP32-P4 devices with comprehensive application ecosystem.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="https://github.com/Paqurin/m5tab5-lvgl">GitHub Repository</a></li>
+                        <li><a href="docs/APPLICATIONS.md">Application List</a></li>
+                        <li><a href="docs/APP_DEVELOPMENT_STANDARD.md">Developer Guide</a></li>
+                        <li><a href="#support">Support</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Technical Specs</h4>
+                    <ul>
+                        <li>ESP32-P4 RISC-V 360MHz</li>
+                        <li>5-inch 1280×720 HD Display</li>
+                        <li>500KB RAM + 32MB PSRAM</li>
+                        <li>16MB Flash Storage</li>
+                        <li>WiFi 6 + Bluetooth 5.0</li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>For support and development inquiries:</p>
+                    <p>📧 Email: support@m5stack-tab5.dev</p>
+                    <p>🐙 GitHub: <a href="https://github.com/Paqurin/m5tab5-lvgl">m5tab5-lvgl</a></p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 M5Stack Tab5 App Store. Built with ❤️ for the M5Stack community.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
