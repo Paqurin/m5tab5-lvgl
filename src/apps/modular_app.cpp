@@ -379,6 +379,16 @@ os_error_t ModularAppManager::loadPackageRegistry() {
 // AppStoreUI Implementation
 
 AppStoreUI::AppStoreUI(ModularAppManager& manager) : m_manager(manager) {
+    // Initialize server management
+    m_serverManager = std::make_unique<AppStoreServerManager>();
+    m_serverManager->initialize();
+    
+    // Initialize server dialog with callback
+    m_serverDialog = std::make_unique<AppStoreServerDialog>(*m_serverManager,
+        [this](const AppStoreServer& server) {
+            // Callback when server is added - refresh available apps
+            updateDisplay();
+        });
 }
 
 os_error_t AppStoreUI::createUI(lv_obj_t* parent) {
@@ -405,6 +415,29 @@ os_error_t AppStoreUI::createUI(lv_obj_t* parent) {
     createInstalledAppsTab();
     createAvailableAppsTab();
 
+    // Create server management buttons
+    m_manageServersButton = lv_btn_create(m_container);
+    lv_obj_set_size(m_manageServersButton, 120, 35);
+    lv_obj_align(m_manageServersButton, LV_ALIGN_TOP_RIGHT, -20, 20);
+    lv_obj_set_style_bg_color(m_manageServersButton, lv_color_hex(0x3498DB), 0);
+    
+    lv_obj_t* manageLabel = lv_label_create(m_manageServersButton);
+    lv_label_set_text(manageLabel, "Servers");
+    lv_obj_center(manageLabel);
+    
+    lv_obj_add_event_cb(m_manageServersButton, manageServersButtonCallback, LV_EVENT_CLICKED, this);
+    
+    m_addServerButton = lv_btn_create(m_container);
+    lv_obj_set_size(m_addServerButton, 35, 35);
+    lv_obj_align_to(m_addServerButton, m_manageServersButton, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+    lv_obj_set_style_bg_color(m_addServerButton, lv_color_hex(0x2ECC71), 0);
+    
+    lv_obj_t* addLabel = lv_label_create(m_addServerButton);
+    lv_label_set_text(addLabel, LV_SYMBOL_PLUS);
+    lv_obj_center(addLabel);
+    
+    lv_obj_add_event_cb(m_addServerButton, addServerButtonCallback, LV_EVENT_CLICKED, this);
+
     // Create status and storage labels
     m_statusLabel = lv_label_create(m_container);
     lv_obj_align(m_statusLabel, LV_ALIGN_BOTTOM_LEFT, 10, -10);
@@ -430,6 +463,8 @@ os_error_t AppStoreUI::destroyUI() {
         m_availableList = nullptr;
         m_statusLabel = nullptr;
         m_storageLabel = nullptr;
+        m_manageServersButton = nullptr;
+        m_addServerButton = nullptr;
     }
     return OS_OK;
 }
@@ -534,4 +569,32 @@ void AppStoreUI::refreshButtonCallback(lv_event_t* e) {
         ui->m_manager.updatePackageRegistry();
         ui->updateDisplay();
     }
+}
+
+void AppStoreUI::manageServersButtonCallback(lv_event_t* e) {
+    AppStoreUI* ui = static_cast<AppStoreUI*>(lv_event_get_user_data(e));
+    if (ui) {
+        ui->showServerManagementDialog();
+    }
+}
+
+void AppStoreUI::addServerButtonCallback(lv_event_t* e) {
+    AppStoreUI* ui = static_cast<AppStoreUI*>(lv_event_get_user_data(e));
+    if (ui) {
+        ui->showAddServerDialog();
+    }
+}
+
+os_error_t AppStoreUI::showServerManagementDialog() {
+    if (m_serverDialog && m_container) {
+        return m_serverDialog->showManagementDialog(m_container);
+    }
+    return OS_ERROR_GENERIC;
+}
+
+os_error_t AppStoreUI::showAddServerDialog() {
+    if (m_serverDialog && m_container) {
+        return m_serverDialog->showAddServerDialog(m_container);
+    }
+    return OS_ERROR_GENERIC;
 }

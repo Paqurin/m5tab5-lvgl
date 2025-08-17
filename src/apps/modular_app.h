@@ -2,6 +2,7 @@
 #define MODULAR_APP_H
 
 #include "base_app.h"
+#include "app_store_server_manager.h"
 #include <functional>
 #include <vector>
 #include <memory>
@@ -222,6 +223,18 @@ public:
      */
     void updateDisplay();
 
+    /**
+     * @brief Show server management dialog
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t showServerManagementDialog();
+
+    /**
+     * @brief Show add server dialog
+     * @return OS_OK on success, error code on failure
+     */
+    os_error_t showAddServerDialog();
+
 private:
     /**
      * @brief Create installed apps tab
@@ -247,8 +260,14 @@ private:
     static void uninstallButtonCallback(lv_event_t* e);
     static void enableButtonCallback(lv_event_t* e);
     static void refreshButtonCallback(lv_event_t* e);
+    static void manageServersButtonCallback(lv_event_t* e);
+    static void addServerButtonCallback(lv_event_t* e);
 
     ModularAppManager& m_manager;
+    
+    // Server management
+    std::unique_ptr<AppStoreServerManager> m_serverManager;
+    std::unique_ptr<AppStoreServerDialog> m_serverDialog;
     
     // UI elements
     lv_obj_t* m_container = nullptr;
@@ -259,6 +278,8 @@ private:
     lv_obj_t* m_availableList = nullptr;
     lv_obj_t* m_statusLabel = nullptr;
     lv_obj_t* m_storageLabel = nullptr;
+    lv_obj_t* m_manageServersButton = nullptr;
+    lv_obj_t* m_addServerButton = nullptr;
 };
 
 #endif // MODULAR_APP_H

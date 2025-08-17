@@ -2,6 +2,7 @@
 #include "rs485_terminal_app.h"
 #include "camera_app.h"
 #include "file_manager_app.h"
+#include "micropython_launcher_app.h"
 #include "../system/os_manager.h"
 #include <esp_log.h>
 
@@ -101,6 +102,14 @@ os_error_t AppIntegration::registerAllApps(AppManager& appManager) {
         ESP_LOGW(TAG, "Failed to register file manager app: %d", result);
     } else {
         ESP_LOGI(TAG, "Registered File Manager App");
+    }
+
+    // Register MicroPython Launcher App
+    result = appManager.registerApp("micropython_launcher", createMicroPythonLauncherApp);
+    if (result != OS_OK) {
+        ESP_LOGW(TAG, "Failed to register MicroPython launcher app: %d", result);
+    } else {
+        ESP_LOGI(TAG, "Registered MicroPython Launcher App");
     }
 
     ESP_LOGI(TAG, "App registration complete");
@@ -206,4 +215,9 @@ std::unique_ptr<BaseApp> AppIntegration::createFileManagerApp() {
     // In the actual implementation, this would be:
     // return std::make_unique<FileManagerApp>();
     return nullptr;
+}
+
+std::unique_ptr<BaseApp> AppIntegration::createMicroPythonLauncherApp() {
+    ESP_LOGI(TAG, "Creating MicroPython Launcher App instance");
+    return std::make_unique<MicroPythonLauncherApp>();
 }

@@ -5,6 +5,7 @@
 #include "modular_app.h"
 #include "calendar_app.h"
 #include "enhanced_terminal_app.h"
+#include "micropython_launcher_app.h"
 #include "../system/os_config.h"
 
 /**
@@ -91,6 +92,12 @@ private:
      * @return Unique pointer to file manager app instance
      */
     static std::unique_ptr<BaseApp> createFileManagerApp();
+
+    /**
+     * @brief MicroPython launcher app factory function
+     * @return Unique pointer to MicroPython launcher app instance
+     */
+    static std::unique_ptr<BaseApp> createMicroPythonLauncherApp();
 
     static ModularAppManager s_modularAppManager;
     static AppStoreUI* s_appStoreUI;
