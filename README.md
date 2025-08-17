@@ -1,6 +1,8 @@
-# M5Stack Tab5 LVGL test os
+# M5Stack Tab5 - Complete Operating System v4
 
-A comprehensive operating system framework for the M5Stack Tab5 ESP32-P4 device built with LVGL graphics library and modular architecture.
+A comprehensive personal assistant and productivity operating system for the M5Stack Tab5 ESP32-P4 device featuring 14 professional applications, AI integration, and enterprise-grade functionality.
+
+📋 **[View Complete Application List](APPLICATIONS.md)** - Detailed features for all 14 applications
 
 ## Hardware Specifications
 
@@ -14,17 +16,38 @@ A comprehensive operating system framework for the M5Stack Tab5 ESP32-P4 device 
 - **Connectivity**: WiFi 6 (802.11ax), Bluetooth 5.0
 - **Power**: USB-C
 
-## Operating System Features
+## 🚀 Version 4 - Personal Assistant Suite
 
+### 📱 Complete Application Ecosystem (14 Apps)
+- 📞 **Contact Management** - Full address book with search, categories, VCard support
+- ✅ **Task Management** - Smart to-do lists with priorities, due dates, progress tracking  
+- 🧮 **Basic Apps Suite** - Expense tracker, calculator, spreadsheet, games
+- 🎤 **Voice Assistant** - ChatGPT integration, multi-language, voice commands
+- ⏰ **Alarm & Timer** - Smart alarms, multiple timers, stopwatch, world clock
+- 📁 **File Manager** - Multi-storage support, operations, analytics
+- 📷 **Camera** - Photo/video capture, gallery, QR scanner, editing
+- 📅 **Calendar** - Event management, reminders, recurring events, iCal support
+- 💻 **Enhanced Terminal** - RS-485, Telnet, SSH with multiple sessions
+- 🔧 **RS-485 Terminal** - Industrial Modbus RTU/ASCII, device scanning
+- 📱 **Modular Apps** - APK-style dynamic loading, app store interface
+- 🔗 **App Integration** - Inter-app communication, shared services
+
+### 🤖 AI & Smart Features
+- **ChatGPT Integration** - Voice assistant with natural language processing
+- **Multi-Language Support** - 6 languages (EN, ES, FR, DE, ZH, JA)
+- **Voice Commands** - System control via voice ("open calculator", "check battery")
+- **Smart Scheduling** - Intelligent task and alarm management
+- **Industrial IoT** - RS-485 Modbus communication for industrial applications
+
+### 🛠️ Enterprise-Grade Architecture
 - ✅ **Modular OS Architecture** - HAL, System, UI, Apps, Services layers
-- ✅ **Application Management** - Dynamic app loading and lifecycle control
-- ✅ **Event System** - Inter-component communication framework
-- ✅ **Memory Management** - Optimized memory allocation and monitoring
-- ✅ **Task Scheduling** - Multi-tasking support with priority management
-- ✅ **HAL Abstraction** - Display, Touch, Storage, Power management
-- ✅ **UI Framework** - Theme management and screen handling
-- ✅ **LVGL Integration** - 1280×720 HD graphics with 16-bit color
-- ✅ **ESP32-P4 Support** - RISC-V dual-core architecture optimization
+- ✅ **Dynamic App Loading** - APK-style installation with dependency management
+- ✅ **Inter-App Communication** - Shared data and service APIs
+- ✅ **Memory Optimization** - 16MB Flash + 32MB PSRAM efficient usage
+- ✅ **Real-Time Performance** - RISC-V dual-core 360MHz optimization
+- ✅ **Industrial Connectivity** - RS-485, Modbus, Telnet, SSH protocols
+- ✅ **Data Security** - Encrypted storage, secure API key management
+- ✅ **LVGL 8.4 Graphics** - Hardware-accelerated 1280×720 HD display
 
 ## Build Configuration
 
@@ -83,9 +106,12 @@ The operating system follows a layered modular architecture:
 - **Screen Manager** - Multi-screen navigation
 
 ### Application Layer (`src/apps/`)
-- **App Manager** - Dynamic application loading
-- **Base App** - Application framework and lifecycle
-- **Demo App** - Built-in system information display
+- **App Manager** - Dynamic application loading and lifecycle management
+- **Base App Framework** - Standardized application development interface
+- **Personal Assistant Apps** - Contact management, task management, voice assistant
+- **Productivity Suite** - Calculator, spreadsheet, expense tracker, calendar
+- **System Utilities** - File manager, camera, terminal applications
+- **Entertainment** - Games, media viewer, interactive demos
 
 ### Services Layer (`src/services/`)
 - **Service Manager** - Background service management
@@ -110,11 +136,25 @@ The operating system follows a layered modular architecture:
 │   │   ├── theme_manager.* # Theme handling
 │   │   ├── input_manager.* # Input processing
 │   │   └── screen_manager.* # Screen management
-│   ├── apps/              # Applications
-│   │   ├── app_manager.*  # App lifecycle
-│   │   └── base_app.*     # App framework
+│   ├── apps/              # 14 Complete Applications
+│   │   ├── contact_management_app.* # Address book with VCard support
+│   │   ├── task_management_app.*    # Smart to-do lists with priorities
+│   │   ├── voice_recognition_app.*  # ChatGPT voice assistant
+│   │   ├── basic_apps_suite.*       # Calculator, expense tracker, games
+│   │   ├── alarm_timer_app.*        # Alarms, timers, stopwatch
+│   │   ├── file_manager_app.*       # Multi-storage file operations
+│   │   ├── camera_app.*             # Photo/video with QR scanner
+│   │   ├── calendar_app.*           # Event management with reminders
+│   │   ├── enhanced_terminal_app.*  # Telnet, SSH, RS-485 support
+│   │   ├── modular_app.*            # APK-style dynamic loading
+│   │   ├── app_integration.*        # Inter-app communication
+│   │   ├── app_manager.*            # Application lifecycle
+│   │   └── base_app.*               # Application framework
 │   └── services/          # Background services
 │       └── service_manager.* # Service management
+├── docs/
+│   ├── APPLICATIONS.md    # Complete application feature list
+│   └── APP_DEVELOPMENT_STANDARD.md # Development guidelines
 ├── include/
 │   └── lv_conf.h          # LVGL configuration
 ├── platformio.ini         # PlatformIO configuration
