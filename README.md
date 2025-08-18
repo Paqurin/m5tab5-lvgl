@@ -1,4 +1,4 @@
-# M5Stack Tab5 - Complete Operating System v4
+# M5Stack Tab5 - Complete Operating System v10
 
 A comprehensive personal assistant and productivity operating system for the M5Stack Tab5 ESP32-P4 device featuring 14 professional applications, AI integration, and enterprise-grade functionality.
 
