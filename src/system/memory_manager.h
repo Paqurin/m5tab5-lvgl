@@ -4,6 +4,8 @@
 #include "os_config.h"
 #include <vector>
 #include <memory>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 /**
  * @file memory_manager.h
@@ -39,6 +41,7 @@ private:
     size_t m_freeBlocks;
     void* m_memory;
     std::vector<bool> m_blockUsed;
+    uint32_t m_memoryType; // Memory capability flags
 };
 
 class MemoryManager {
@@ -128,6 +131,43 @@ public:
      * @return Size of largest free block in bytes
      */
     size_t getLargestFreeBlock() const;
+    
+    /**
+     * @brief Get free PSRAM memory
+     * @return Free PSRAM memory in bytes
+     */
+    size_t getFreePSRAM() const;
+    
+    /**
+     * @brief Get largest free PSRAM block
+     * @return Size of largest free PSRAM block in bytes
+     */
+    size_t getLargestFreePSRAMBlock() const;
+    
+    /**
+     * @brief Get heap fragmentation ratio
+     * @return Fragmentation ratio (0.0 = no fragmentation, 1.0 = fully fragmented)
+     */
+    float getFragmentationRatio() const;
+    
+    /**
+     * @brief Get PSRAM fragmentation ratio
+     * @return PSRAM fragmentation ratio
+     */
+    float getPSRAMFragmentationRatio() const { return m_psramFragmentation; }
+    
+    /**
+     * @brief Allocate DMA-capable memory
+     * @param size Size in bytes to allocate
+     * @param alignment Memory alignment requirement
+     * @return Pointer to DMA memory or nullptr on failure
+     */
+    void* allocateDMA(size_t size, size_t alignment = 4);
+    
+    /**
+     * @brief Optimize memory manager for real-time performance
+     */
+    void optimizeForRealtime();
 
 private:
     /**
@@ -141,6 +181,11 @@ private:
      * @brief Update memory statistics
      */
     void updateStats();
+    
+    /**
+     * @brief Update fragmentation statistics
+     */
+    void updateFragmentationStats();
 
     // Memory tracking
     std::vector<MemoryBlock> m_activeBlocks;
@@ -152,6 +197,14 @@ private:
     // Memory pools for common sizes
     std::vector<std::unique_ptr<MemoryPool>> m_pools;
     bool m_initialized = false;
+    
+    // Thread safety
+    SemaphoreHandle_t m_mutex = nullptr;
+    
+    // Fragmentation tracking
+    float m_heapFragmentation = 0.0f;
+    float m_psramFragmentation = 0.0f;
+    uint32_t m_allocationFailures = 0;
 };
 
 // Memory allocation macros for debugging

@@ -34,8 +34,11 @@ struct Task {
     uint32_t maxRunTime;
     uint32_t actualRunTime;
     uint32_t executionCount;
+    uint32_t overrunCount = 0;
+    float avgExecutionTime = 0.0f;
     const char* name;
     bool autoDelete;
+    bool isRealtime = false; // Flag for real-time tasks
 };
 
 class TaskScheduler {
@@ -85,6 +88,19 @@ public:
     uint32_t schedulePeriodic(TaskFunction function, uint32_t period, 
                              uint8_t priority = OS_TASK_PRIORITY_NORMAL,
                              uint32_t delay = 0, const char* name = nullptr);
+    
+    /**
+     * @brief Schedule a real-time periodic task
+     * @param function Task function to execute
+     * @param period Period between executions in milliseconds
+     * @param priority Task priority (should be HIGH)
+     * @param maxRuntime Maximum execution time in milliseconds
+     * @param name Optional task name for debugging
+     * @return Task ID or 0 on failure
+     */
+    uint32_t scheduleRealtimeTask(TaskFunction function, uint32_t period,
+                                 uint8_t priority = OS_TASK_PRIORITY_HIGH,
+                                 uint32_t maxRuntime = 5, const char* name = nullptr);
 
     /**
      * @brief Cancel a scheduled task
@@ -130,6 +146,35 @@ public:
      * @brief Print task statistics
      */
     void printStats() const;
+    
+    /**
+     * @brief Get average frame time
+     * @return Average frame time in milliseconds
+     */
+    float getAverageFrameTime() const { return m_averageFrameTime; }
+    
+    /**
+     * @brief Get maximum frame time
+     * @return Maximum frame time in milliseconds
+     */
+    float getMaxFrameTime() const { return m_maxFrameTime; }
+    
+    /**
+     * @brief Check if scheduler is maintaining 60Hz
+     * @return true if maintaining target framerate
+     */
+    bool isMaintaining60Hz() const { return m_averageFrameTime <= 16.67f; }
+    
+    /**
+     * @brief Get frame overrun count
+     * @return Number of frame budget overruns
+     */
+    uint32_t getFrameOverruns() const { return m_frameOverruns; }
+    
+    /**
+     * @brief Optimize scheduler for real-time performance
+     */
+    void optimizeForRealtime();
 
     /**
      * @brief Set maximum execution time for new tasks
@@ -178,8 +223,21 @@ private:
     uint8_t m_cpuLoad = 0;
     uint32_t m_tasksExecuted = 0;
     uint32_t m_tasksOverrun = 0;
+    uint32_t m_frameOverruns = 0;
+    
+    // Performance monitoring
+    std::vector<uint32_t> m_frameTimeHistory;
+    uint64_t m_lastFrameTime = 0;
+    float m_averageFrameTime = 16.67f; // Target 60Hz
+    float m_maxFrameTime = 0.0f;
 
     bool m_initialized = false;
+    
+    /**
+     * @brief Update frame timing statistics
+     * @param frameTime Frame time in microseconds
+     */
+    void updateFrameStats(uint64_t frameTime);
 };
 
 #endif // TASK_SCHEDULER_H

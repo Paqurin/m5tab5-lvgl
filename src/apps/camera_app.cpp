@@ -229,7 +229,7 @@ os_error_t CameraApp::initializeCamera() {
     return OS_OK;
 }
 
-os_error_t CameraApp::capturePhoto() {
+os_error_t CameraApp::capturePhoto(const std::string& filename) {
     if (!m_cameraInitialized) {
         return OS_ERROR_GENERIC;
     }
@@ -244,7 +244,7 @@ os_error_t CameraApp::capturePhoto() {
     }
 
     // Save image
-    os_error_t result = saveImage(fb);
+    os_error_t result = saveImage(fb, filename);
     
     // Return frame buffer
     esp_camera_fb_return(fb);
@@ -257,7 +257,7 @@ os_error_t CameraApp::capturePhoto() {
     return result;
 }
 
-os_error_t CameraApp::startVideoRecording() {
+os_error_t CameraApp::startVideoRecording(const std::string& filename) {
     if (!m_cameraInitialized || m_recording) {
         return OS_ERROR_GENERIC;
     }
@@ -267,7 +267,7 @@ os_error_t CameraApp::startVideoRecording() {
     m_recording = true;
     m_recordingStartTime = millis();
     
-    // TODO: Implement actual video recording
+    // TODO: Implement actual video recording with filename
     // This would involve setting up video encoder and file writing
     
     return OS_OK;
@@ -439,14 +439,19 @@ void CameraApp::updatePreview() {
     }
 }
 
-os_error_t CameraApp::saveImage(camera_fb_t* fb) {
+os_error_t CameraApp::saveImage(camera_fb_t* fb, const std::string& customFilename) {
     if (!fb) {
         return OS_ERROR_INVALID_PARAM;
     }
 
     // Generate filename
     char filename[MAX_FILENAME_LENGTH];
-    snprintf(filename, sizeof(filename), "/sdcard/IMG_%05d.jpg", m_photosCaptured + 1);
+    if (customFilename.empty()) {
+        snprintf(filename, sizeof(filename), "/sdcard/IMG_%05d.jpg", m_photosCaptured + 1);
+    } else {
+        strncpy(filename, customFilename.c_str(), sizeof(filename) - 1);
+        filename[sizeof(filename) - 1] = '\0';
+    }
 
     // Save to SD card
     FILE* file = fopen(filename, "wb");

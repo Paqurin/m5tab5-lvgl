@@ -6,6 +6,7 @@
 #include "touch_hal.h"
 #include "power_hal.h"
 #include "storage_hal.h"
+#include "ppa_hal.h"
 
 /**
  * @file hal_manager.h
@@ -50,6 +51,14 @@ public:
     TouchHAL& getTouch() { return *m_touchHAL; }
     PowerHAL& getPower() { return *m_powerHAL; }
     StorageHAL& getStorage() { return *m_storageHAL; }
+    
+#ifdef CONFIG_ESP_PPA_ACCELERATION
+    /**
+     * @brief Get PPA (Pixel Processing Accelerator) interface
+     * @return True if PPA is available and initialized
+     */
+    bool getPPAAvailable() const { return m_ppaAvailable; }
+#endif
 
     /**
      * @brief Get hardware information string
@@ -92,6 +101,10 @@ private:
     bool m_initialized = false;
     bool m_lowPowerMode = false;
     char m_hardwareInfo[128];
+    
+#ifdef CONFIG_ESP_PPA_ACCELERATION
+    bool m_ppaAvailable = false;
+#endif
 };
 
 #endif // HAL_MANAGER_H

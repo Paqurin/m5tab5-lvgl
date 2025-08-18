@@ -11,9 +11,15 @@
  */
 
 // Board identification
+#ifndef BOARD_M5STACK_TAB5
 #define BOARD_M5STACK_TAB5
+#endif
+#ifndef MCU_ESP32_P4
 #define MCU_ESP32_P4
+#endif
+#ifndef ARCHITECTURE_RISCV
 #define ARCHITECTURE_RISCV
+#endif
 
 // Display specifications
 #define DISPLAY_WIDTH           1280
@@ -93,17 +99,35 @@
 #define CAMERA_RST_PIN          GPIO_NUM_21
 #define CAMERA_PWR_PIN          GPIO_NUM_22
 
-// Storage configuration
+// Storage configuration (Official Tab5 pin mapping)
 #define SD_CARD_ENABLED         1
-#define SD_CS_PIN               GPIO_NUM_15
-#define SD_MOSI_PIN             GPIO_NUM_16
-#define SD_MISO_PIN             GPIO_NUM_17
-#define SD_CLK_PIN              GPIO_NUM_18
+#define SD_CS_PIN               GPIO_NUM_40  // Official: G40
+#define SD_MOSI_PIN             GPIO_NUM_42  // Official: G42
+#define SD_MISO_PIN             GPIO_NUM_39  // Official: G39
+#define SD_CLK_PIN              GPIO_NUM_41  // Official: G41
 
-// Expansion interfaces
+// M5-Bus Expansion Interface (Official Tab5 pin mapping)
 #define M5_BUS_ENABLED          1
-#define M5_BUS_SDA_PIN          GPIO_NUM_19
-#define M5_BUS_SCL_PIN          GPIO_NUM_20
+#define M5_BUS_SDA_PIN          GPIO_NUM_31  // Official: G31 (Int SDA)
+#define M5_BUS_SCL_PIN          GPIO_NUM_32  // Official: G32 (Int SCL)
+#define M5_BUS_GPIO16           GPIO_NUM_16  // Official: G16
+#define M5_BUS_GPIO17           GPIO_NUM_17  // Official: G17 (PB_IN)
+#define M5_BUS_MOSI_PIN         GPIO_NUM_18  // Official: G18
+#define M5_BUS_GPIO45           GPIO_NUM_45  // Official: G45
+#define M5_BUS_MISO_PIN         GPIO_NUM_19  // Official: G19
+#define M5_BUS_GPIO52           GPIO_NUM_52  // Official: G52 (PB_OUT)
+#define M5_BUS_SCK_PIN          GPIO_NUM_5   // Official: G5
+#define M5_BUS_RXD0_PIN         GPIO_NUM_38  // Official: G38
+#define M5_BUS_TXD0_PIN         GPIO_NUM_37  // Official: G37
+#define M5_BUS_PC_RX_PIN        GPIO_NUM_7   // Official: G7
+#define M5_BUS_PC_TX_PIN        GPIO_NUM_6   // Official: G6
+#define M5_BUS_GPIO3            GPIO_NUM_3   // Official: G3
+#define M5_BUS_GPIO4            GPIO_NUM_4   // Official: G4
+#define M5_BUS_GPIO2            GPIO_NUM_2   // Official: G2
+#define M5_BUS_GPIO48           GPIO_NUM_48  // Official: G48
+#define M5_BUS_GPIO47           GPIO_NUM_47  // Official: G47
+#define M5_BUS_GPIO35           GPIO_NUM_35  // Official: G35
+#define M5_BUS_GPIO51           GPIO_NUM_51  // Official: G51
 
 // SD Card SPI pins
 #define SD_SCK_PIN              SD_CLK_PIN
@@ -209,12 +233,12 @@
 #define MIC_BIAS_EN_PIN         GPIO_NUM_55     // Microphone bias enable
 #define MIC_GAIN_CTRL_PIN       GPIO_NUM_56     // Microphone gain control
 
-// RS-485 configuration
+// RS-485 configuration (Official Tab5 pin mapping)
 #define RS485_ENABLED           1
-#define RS485_TX_PIN            GPIO_NUM_32
-#define RS485_RX_PIN            GPIO_NUM_33
-#define RS485_DE_PIN            GPIO_NUM_34  // Driver Enable
-#define RS485_RE_PIN            GPIO_NUM_35  // Receiver Enable
+#define RS485_TX_PIN            GPIO_NUM_20  // Official: G20
+#define RS485_RX_PIN            GPIO_NUM_21  // Official: G21
+#define RS485_DE_PIN            GPIO_NUM_34  // Official: G34 (DIR pin)
+#define RS485_RE_PIN            GPIO_NUM_34  // Same as DE pin (SIT3088 uses single DIR)
 #define RS485_RTS_PIN           RS485_DE_PIN // Same as DE pin
 #define RS485_CTS_PIN           (-1)         // Not used
 
@@ -242,6 +266,22 @@
 #define LPW5209_EN2_PIN         GPIO_NUM_42  // Second 5V output enable
 #define LPW5209_FAULT1_PIN      GPIO_NUM_43  // First output fault detection
 #define LPW5209_FAULT2_PIN      GPIO_NUM_44  // Second output fault detection
+
+// ESP32-C6 SDIO Interface (Official Tab5 pin mapping)
+#define ESP32_C6_ENABLED        1
+#define ESP32_C6_SDIO2_D0       GPIO_NUM_11  // Official: G11
+#define ESP32_C6_SDIO2_D1       GPIO_NUM_10  // Official: G10
+#define ESP32_C6_SDIO2_D2       GPIO_NUM_9   // Official: G9
+#define ESP32_C6_SDIO2_D3       GPIO_NUM_8   // Official: G8
+#define ESP32_C6_SDIO2_CMD      GPIO_NUM_13  // Official: G13
+#define ESP32_C6_SDIO2_CK       GPIO_NUM_12  // Official: G12
+#define ESP32_C6_RESET          GPIO_NUM_15  // Official: G15
+#define ESP32_C6_IO2            GPIO_NUM_14  // Official: G14
+
+// HY2.0-4P Expansion Port (Official Tab5 pin mapping)
+#define HY2_EXPANSION_ENABLED   1
+#define HY2_PORT_A_PIN1         GPIO_NUM_53  // Official: G53 (Yellow wire)
+#define HY2_PORT_A_PIN2         GPIO_NUM_54  // Official: G54 (White wire)
 
 // Wireless control
 #define WIFI_EN_PIN             GPIO_NUM_1   // WiFi enable control

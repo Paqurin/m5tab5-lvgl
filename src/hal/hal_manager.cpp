@@ -41,6 +41,17 @@ os_error_t HALManager::shutdown() {
     ESP_LOGI(TAG, "Shutting down HAL Manager");
 
     // Shutdown components in reverse order
+#ifdef CONFIG_ESP_PPA_ACCELERATION
+    // Shutdown PPA
+    if (m_ppaAvailable) {
+        esp_err_t ppa_result = ppa_hal_deinit();
+        if (ppa_result != ESP_OK) {
+            ESP_LOGW(TAG, "PPA shutdown failed: %s", esp_err_to_name(ppa_result));
+        }
+        m_ppaAvailable = false;
+    }
+#endif
+
     if (m_storageHAL) {
         m_storageHAL->shutdown();
         delete m_storageHAL;
@@ -198,6 +209,19 @@ os_error_t HALManager::initializeComponents() {
         ESP_LOGE(TAG, "Failed to initialize Storage HAL");
         return OS_ERROR_HARDWARE;
     }
+
+#ifdef CONFIG_ESP_PPA_ACCELERATION
+    // Initialize PPA (Pixel Processing Accelerator)
+    esp_err_t ppa_result = ppa_hal_init();
+    if (ppa_result == ESP_OK) {
+        m_ppaAvailable = true;
+        ESP_LOGI(TAG, "PPA (Pixel Processing Accelerator) initialized successfully");
+    } else {
+        m_ppaAvailable = false;
+        ESP_LOGW(TAG, "PPA initialization failed: %s", esp_err_to_name(ppa_result));
+        ESP_LOGW(TAG, "Continuing without hardware graphics acceleration");
+    }
+#endif
 
     return OS_OK;
 }

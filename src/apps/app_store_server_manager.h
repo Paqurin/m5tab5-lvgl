@@ -179,13 +179,14 @@ public:
      */
     os_error_t exportServersToConfig(const std::string& configPath);
 
-private:
     /**
      * @brief Generate unique server ID
      * @param baseName Base name for ID generation
      * @return Unique server ID
      */
     std::string generateServerId(const std::string& baseName);
+
+private:
 
     /**
      * @brief Validate URL format

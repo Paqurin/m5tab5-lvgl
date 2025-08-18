@@ -5,6 +5,8 @@
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 #include <esp_psram.h>
+#include <esp_heap_caps.h>
+#include <esp_timer.h>
 
 static const char* TAG = "DisplayHAL";
 
@@ -81,11 +83,23 @@ os_error_t DisplayHAL::update(uint32_t deltaTime) {
         return OS_OK;
     }
 
-    // Handle LVGL tasks
+    // Track frame timing for 60Hz validation
+    uint32_t frameStart = esp_timer_get_time();
+    
+    // Handle LVGL tasks with precise timing
     lv_timer_handler();
 
-    // Update FPS statistics
+    // Update FPS statistics and performance metrics
     updateFPS();
+    
+    // Calculate frame time for 60Hz monitoring
+    uint32_t frameTime = esp_timer_get_time() - frameStart;
+    m_lastFrameTime = frameTime;
+    
+    // Log performance warnings if frame time exceeds 16.67ms (60Hz threshold)
+    if (frameTime > 16670) { // 16.67ms in microseconds
+        ESP_LOGW(TAG, "Frame time exceeded 60Hz threshold: %d us", (int)frameTime);
+    }
 
     return OS_OK;
 }
@@ -225,20 +239,29 @@ void DisplayHAL::lvglFlushCallback(lv_disp_drv_t* disp_drv,
 }
 
 os_error_t DisplayHAL::initializeLVGL() {
-    // Calculate buffer size (10 lines worth of pixels)
-    uint32_t bufferSize = OS_SCREEN_WIDTH * 10;
+    // Calculate buffer size (20 lines for 60Hz smooth rendering)
+    uint32_t bufferSize = OS_SCREEN_WIDTH * 20;
     
-    // Allocate draw buffers
-    m_buffer1 = static_cast<lv_color_t*>(malloc(bufferSize * sizeof(lv_color_t)));
+    // Allocate draw buffers in PSRAM for 60Hz performance
+    m_buffer1 = static_cast<lv_color_t*>(heap_caps_malloc(bufferSize * sizeof(lv_color_t), MALLOC_CAP_SPIRAM));
     if (!m_buffer1) {
-        ESP_LOGE(TAG, "Failed to allocate primary draw buffer");
-        return OS_ERROR_NO_MEMORY;
+        ESP_LOGE(TAG, "Failed to allocate primary draw buffer in PSRAM");
+        // Fallback to internal RAM
+        m_buffer1 = static_cast<lv_color_t*>(malloc(bufferSize * sizeof(lv_color_t)));
+        if (!m_buffer1) {
+            ESP_LOGE(TAG, "Failed to allocate primary draw buffer");
+            return OS_ERROR_NO_MEMORY;
+        }
     }
 
-    // Optional second buffer for better performance
-    m_buffer2 = static_cast<lv_color_t*>(malloc(bufferSize * sizeof(lv_color_t)));
+    // Second buffer essential for 60Hz double buffering
+    m_buffer2 = static_cast<lv_color_t*>(heap_caps_malloc(bufferSize * sizeof(lv_color_t), MALLOC_CAP_SPIRAM));
     if (!m_buffer2) {
-        ESP_LOGW(TAG, "Failed to allocate secondary draw buffer, using single buffer");
+        ESP_LOGW(TAG, "Failed to allocate secondary draw buffer in PSRAM, trying internal RAM");
+        m_buffer2 = static_cast<lv_color_t*>(malloc(bufferSize * sizeof(lv_color_t)));
+        if (!m_buffer2) {
+            ESP_LOGW(TAG, "No secondary buffer - 60Hz performance may be reduced");
+        }
     }
 
     // Initialize draw buffer
@@ -259,8 +282,8 @@ os_error_t DisplayHAL::initializeLVGL() {
         return OS_ERROR_GENERIC;
     }
 
-    ESP_LOGI(TAG, "LVGL display driver initialized (%s buffer)",
-             m_buffer2 ? "double" : "single");
+    ESP_LOGI(TAG, "LVGL display driver initialized (%s buffer, %d lines)",
+             m_buffer2 ? "double" : "single", bufferSize / OS_SCREEN_WIDTH);
 
     return OS_OK;
 }
@@ -356,6 +379,14 @@ void DisplayHAL::updateFPS() {
     
     if (elapsed >= 1000) { // Update every second
         m_fps = (float)m_frameCount * 1000.0f / elapsed;
+        
+        // Log 60Hz performance metrics
+        if (m_fps < 58.0f) {
+            ESP_LOGW(TAG, "FPS below 60Hz target: %.1f FPS", m_fps);
+        } else if (m_fps >= 59.0f) {
+            ESP_LOGD(TAG, "60Hz target achieved: %.1f FPS", m_fps);
+        }
+        
         m_frameCount = 0;
         m_lastFPSUpdate = now;
     }

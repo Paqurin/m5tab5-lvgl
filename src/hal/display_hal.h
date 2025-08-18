@@ -156,6 +156,7 @@ private:
     float m_fps = 0.0f;
     uint32_t m_totalFlushes = 0;
     uint32_t m_lastRefresh = 0;
+    uint32_t m_lastFrameTime = 0; // Frame time in microseconds for 60Hz monitoring
 };
 
 #endif // DISPLAY_HAL_H

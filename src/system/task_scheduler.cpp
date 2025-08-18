@@ -270,10 +270,90 @@ void TaskScheduler::updateCPULoad() {
 }
 
 void TaskScheduler::cleanupTasks() {
+    size_t initialSize = m_tasks.size();
     m_tasks.erase(
         std::remove_if(m_tasks.begin(), m_tasks.end(),
                       [](const Task& task) {
                           return task.state == TaskState::COMPLETED && task.autoDelete;
                       }),
         m_tasks.end());
+    
+    size_t removedTasks = initialSize - m_tasks.size();
+    if (removedTasks > 0) {
+        ESP_LOGD(TAG, "Cleaned up %d completed tasks", removedTasks);
+    }
+}
+
+uint32_t TaskScheduler::scheduleRealtimeTask(TaskFunction function, uint32_t period,
+                                            uint8_t priority, uint32_t maxRuntime, const char* name) {
+    if (!m_initialized || !function || period == 0 || m_tasks.size() >= OS_MAX_TASKS) {
+        return 0;
+    }
+
+    Task task;
+    task.id = generateTaskId();
+    task.function = function;
+    task.priority = priority;
+    task.state = TaskState::READY;
+    task.nextExecution = millis();
+    task.period = period;
+    task.maxRunTime = maxRuntime;
+    task.actualRunTime = 0;
+    task.executionCount = 0;
+    task.overrunCount = 0;
+    task.avgExecutionTime = 0.0f;
+    task.name = name;
+    task.autoDelete = false;
+    task.isRealtime = true; // Mark as real-time task
+
+    m_tasks.push_back(task);
+
+    ESP_LOGI(TAG, "Scheduled real-time task %d '%s' (priority %d, period %d ms, max runtime %d ms)", 
+            task.id, name ? name : "unnamed", priority, period, maxRuntime);
+
+    return task.id;
+}
+
+void TaskScheduler::updateFrameStats(uint64_t frameTime) {
+    uint32_t frameTimeMs = frameTime / 1000;
+    
+    // Update rolling average
+    m_frameTimeHistory.push_back(frameTimeMs);
+    if (m_frameTimeHistory.size() > 60) {
+        m_frameTimeHistory.erase(m_frameTimeHistory.begin());
+    }
+    
+    // Calculate average
+    uint32_t sum = 0;
+    for (uint32_t time : m_frameTimeHistory) {
+        sum += time;
+    }
+    m_averageFrameTime = (float)sum / m_frameTimeHistory.size();
+    
+    // Track maximum
+    if (frameTimeMs > m_maxFrameTime) {
+        m_maxFrameTime = frameTimeMs;
+    }
+}
+
+void TaskScheduler::optimizeForRealtime() {
+    ESP_LOGI(TAG, "Optimizing task scheduler for real-time performance");
+    
+    // Mark high-priority tasks as real-time
+    for (auto& task : m_tasks) {
+        if (task.priority >= OS_TASK_PRIORITY_HIGH) {
+            task.isRealtime = true;
+            // Reduce max runtime for real-time tasks
+            if (task.maxRunTime > 10) {
+                task.maxRunTime = 10; // 10ms max for real-time tasks
+            }
+        }
+    }
+    
+    // Reset statistics
+    m_frameOverruns = 0;
+    m_maxFrameTime = 0.0f;
+    m_frameTimeHistory.clear();
+    
+    ESP_LOGI(TAG, "Real-time optimization complete");
 }

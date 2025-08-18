@@ -1,0 +1,773 @@
+#include "ppa_hal.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+
+#ifdef CONFIG_ESP_PPA_ACCELERATION
+
+// Note: ESP32-P4 PPA driver is not yet available in Arduino ESP32 framework
+// This is a stub implementation that can be extended when the driver is released
+#define ESP_PPA_DRIVER_NOT_AVAILABLE 1
+
+#ifndef ESP_PPA_DRIVER_NOT_AVAILABLE
+#include "driver/ppa.h"
+#include "hal/ppa_types.h"
+#endif
+
+static const char* TAG = "PPA_HAL";
+
+// Global PPA HAL context
+static ppa_hal_context_t* g_ppa_ctx = NULL;
+
+// Performance tracking
+static uint32_t g_operation_count = 0;
+static uint64_t g_total_time_us = 0;
+static uint64_t g_last_op_start = 0;
+
+// Forward declarations
+static bool ppa_event_callback(ppa_client_handle_t ppa_client, ppa_event_data_t* event_data, void* user_data);
+static esp_err_t ppa_hal_register_clients(void);
+static void ppa_hal_unregister_clients(void);
+static ppa_srm_color_mode_t convert_to_srm_color_mode(ppa_image_format_t format);
+static ppa_blend_color_mode_t convert_to_blend_color_mode(ppa_image_format_t format);
+static ppa_fill_color_mode_t convert_to_fill_color_mode(ppa_image_format_t format);
+
+// === Initialization ===
+
+esp_err_t ppa_hal_init(void) {
+#ifdef ESP_PPA_DRIVER_NOT_AVAILABLE
+    ESP_LOGW(TAG, "ESP32-P4 PPA driver not yet available in Arduino framework");
+    ESP_LOGI(TAG, "PPA HAL initialized in stub mode - ready for future driver integration");
+    return ESP_OK;
+#else
+    if (g_ppa_ctx != NULL) {
+        ESP_LOGW(TAG, "PPA HAL already initialized");
+        return ESP_OK;
+    }
+    
+    // Allocate context
+    g_ppa_ctx = (ppa_hal_context_t*)heap_caps_calloc(1, sizeof(ppa_hal_context_t), MALLOC_CAP_INTERNAL);
+    if (!g_ppa_ctx) {
+        ESP_LOGE(TAG, "Failed to allocate PPA context");
+        return ESP_ERR_NO_MEM;
+    }
+    
+    // Create mutex
+    g_ppa_ctx->mutex = xSemaphoreCreateMutex();
+    if (!g_ppa_ctx->mutex) {
+        ESP_LOGE(TAG, "Failed to create mutex");
+        free(g_ppa_ctx);
+        g_ppa_ctx = NULL;
+        return ESP_ERR_NO_MEM;
+    }
+    
+    // Register PPA clients for different operations
+    esp_err_t ret = ppa_hal_register_clients();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register PPA clients: %s", esp_err_to_name(ret));
+        vSemaphoreDelete(g_ppa_ctx->mutex);
+        free(g_ppa_ctx);
+        g_ppa_ctx = NULL;
+        return ret;
+    }
+    
+    g_ppa_ctx->status = PPA_STATUS_IDLE;
+    g_ppa_ctx->initialized = true;
+    g_ppa_ctx->operations_count = 0;
+    
+    ESP_LOGI(TAG, "PPA HAL initialized successfully");
+    
+#ifdef PPA_ENABLE_LVGL_INTEGRATION
+    // Initialize LVGL integration
+    ret = ppa_hal_lvgl_init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to initialize LVGL integration: %s", esp_err_to_name(ret));
+        // Continue without LVGL integration
+    } else {
+        ESP_LOGI(TAG, "LVGL PPA acceleration enabled");
+    }
+#endif
+    
+    return ESP_OK;
+}
+
+esp_err_t ppa_hal_deinit(void) {
+#ifdef ESP_PPA_DRIVER_NOT_AVAILABLE
+    ESP_LOGI(TAG, "PPA HAL deinitialized (stub mode)");
+    return ESP_OK;
+#else
+    if (!g_ppa_ctx) {
+        return ESP_OK;
+    }
+    
+    // Wait for any pending operations
+    if (g_ppa_ctx->status == PPA_STATUS_BUSY) {
+        ppa_hal_wait_completion(PPA_OPERATION_TIMEOUT_MS);
+    }
+    
+    // Unregister clients
+    ppa_hal_unregister_clients();
+    
+    // Clean up
+    if (g_ppa_ctx->mutex) {
+        vSemaphoreDelete(g_ppa_ctx->mutex);
+    }
+    
+    free(g_ppa_ctx);
+    g_ppa_ctx = NULL;
+    
+    ESP_LOGI(TAG, "PPA HAL deinitialized");
+    return ESP_OK;
+}
+
+bool ppa_hal_is_initialized(void) {
+    return g_ppa_ctx != NULL && g_ppa_ctx->initialized;
+}
+
+ppa_hal_status_t ppa_hal_get_status(void) {
+    if (!g_ppa_ctx) {
+        return PPA_STATUS_ERROR;
+    }
+    return g_ppa_ctx->status;
+}
+
+// === Client Registration ===
+
+static esp_err_t ppa_hal_register_clients(void) {
+    esp_err_t ret;
+    
+    // Register SRM client
+    ppa_client_config_t srm_config = {
+        .oper_type = PPA_OPERATION_SRM,
+        .max_pending_trans_num = PPA_MAX_PENDING_TRANS,
+        .data_burst_length = PPA_DATA_BURST_LENGTH_128  // Maximum performance
+    };
+    
+    ret = ppa_register_client(&srm_config, &g_ppa_ctx->clients[PPA_CLIENT_TYPE_SRM]);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register SRM client: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    
+    // Register BLEND client
+    ppa_client_config_t blend_config = {
+        .oper_type = PPA_OPERATION_BLEND,
+        .max_pending_trans_num = PPA_MAX_PENDING_TRANS,
+        .data_burst_length = PPA_DATA_BURST_LENGTH_128
+    };
+    
+    ret = ppa_register_client(&blend_config, &g_ppa_ctx->clients[PPA_CLIENT_TYPE_BLEND]);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register BLEND client: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    
+    // Register FILL client
+    ppa_client_config_t fill_config = {
+        .oper_type = PPA_OPERATION_FILL,
+        .max_pending_trans_num = PPA_MAX_PENDING_TRANS,
+        .data_burst_length = PPA_DATA_BURST_LENGTH_128
+    };
+    
+    ret = ppa_register_client(&fill_config, &g_ppa_ctx->clients[PPA_CLIENT_TYPE_FILL]);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register FILL client: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    
+    // Register event callbacks
+    ppa_event_callbacks_t callbacks = {
+        .on_trans_done = ppa_event_callback
+    };
+    
+    for (int i = 0; i < PPA_CLIENT_TYPE_MAX; i++) {
+        if (g_ppa_ctx->clients[i]) {
+            ret = ppa_client_register_event_callbacks(g_ppa_ctx->clients[i], &callbacks);
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to register callbacks for client %d: %s", i, esp_err_to_name(ret));
+            }
+        }
+    }
+    
+    ESP_LOGI(TAG, "PPA clients registered successfully");
+    return ESP_OK;
+}
+
+static void ppa_hal_unregister_clients(void) {
+    for (int i = 0; i < PPA_CLIENT_TYPE_MAX; i++) {
+        if (g_ppa_ctx->clients[i]) {
+            esp_err_t ret = ppa_unregister_client(g_ppa_ctx->clients[i]);
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to unregister client %d: %s", i, esp_err_to_name(ret));
+            }
+            g_ppa_ctx->clients[i] = NULL;
+        }
+    }
+}
+
+// === Event Callback ===
+
+static bool ppa_event_callback(ppa_client_handle_t ppa_client, ppa_event_data_t* event_data, void* user_data) {
+    if (!g_ppa_ctx) {
+        return false;
+    }
+    
+    // Update performance statistics
+    if (g_last_op_start > 0) {
+        uint64_t duration = esp_timer_get_time() - g_last_op_start;
+        g_total_time_us += duration;
+        g_operation_count++;
+        g_last_op_start = 0;
+    }
+    
+    // Update status
+    g_ppa_ctx->status = PPA_STATUS_COMPLETE;
+    
+    // Wake up waiting task if any
+    if (g_ppa_ctx->waiting_task) {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        vTaskNotifyGiveFromISR(g_ppa_ctx->waiting_task, &xHigherPriorityTaskWoken);
+        g_ppa_ctx->waiting_task = NULL;
+        return xHigherPriorityTaskWoken == pdTRUE;
+    }
+    
+    return false;
+}
+
+// === Transform Operations ===
+
+esp_err_t ppa_hal_transform_image(const ppa_image_t* src_img, 
+                                  const ppa_rect_t* src_rect,
+                                  const ppa_image_t* dst_img, 
+                                  uint16_t dst_x, uint16_t dst_y,
+                                  const ppa_transform_t* transform,
+                                  bool blocking) {
+    if (!ppa_hal_is_initialized()) {
+        ESP_LOGE(TAG, "PPA HAL not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    if (!src_img || !dst_img || !transform) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    // Take mutex
+    if (xSemaphoreTake(g_ppa_ctx->mutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to take mutex");
+        return ESP_ERR_TIMEOUT;
+    }
+    
+    // Check if operation is already in progress
+    if (g_ppa_ctx->status == PPA_STATUS_BUSY) {
+        xSemaphoreGive(g_ppa_ctx->mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    g_ppa_ctx->status = PPA_STATUS_BUSY;
+    g_last_op_start = esp_timer_get_time();
+    
+    // Configure SRM operation
+    ppa_srm_oper_config_t srm_config = {
+        .in = {
+            .buffer = src_img->buffer,
+            .pic_w = src_img->width,
+            .pic_h = src_img->height,
+            .block_w = src_rect ? src_rect->width : src_img->width,
+            .block_h = src_rect ? src_rect->height : src_img->height,
+            .block_offset_x = src_rect ? src_rect->x : 0,
+            .block_offset_y = src_rect ? src_rect->y : 0,
+            .srm_cm = convert_to_srm_color_mode(src_img->format)
+        },
+        .out = {
+            .buffer = dst_img->buffer,
+            .pic_w = dst_img->width,
+            .pic_h = dst_img->height,
+            .block_offset_x = dst_x,
+            .block_offset_y = dst_y,
+            .srm_cm = convert_to_srm_color_mode(dst_img->format)
+        },
+        .rotation_angle = transform->rotation,
+        .scale_x = transform->scale_x,
+        .scale_y = transform->scale_y,
+        .mirror_x = transform->mirror_x,
+        .mirror_y = transform->mirror_y,
+        .rgb_swap = false,
+        .byte_swap = false,
+        .alpha_update_mode = PPA_ALPHA_FIX_VALUE,
+        .alpha_fix_val = transform->alpha,
+        .mode = blocking ? PPA_TRANS_MODE_BLOCKING : PPA_TRANS_MODE_NON_BLOCKING,
+        .user_data = NULL
+    };
+    
+    if (blocking) {
+        g_ppa_ctx->waiting_task = xTaskGetCurrentTaskHandle();
+    }
+    
+    esp_err_t ret = ppa_do_scale_rotate_mirror(g_ppa_ctx->clients[PPA_CLIENT_TYPE_SRM], &srm_config);
+    
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "SRM operation failed: %s", esp_err_to_name(ret));
+        g_ppa_ctx->status = PPA_STATUS_ERROR;
+        g_ppa_ctx->waiting_task = NULL;
+    } else if (blocking) {
+        // Wait for completion
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PPA_OPERATION_TIMEOUT_MS));
+        g_ppa_ctx->status = PPA_STATUS_IDLE;
+    }
+    
+    xSemaphoreGive(g_ppa_ctx->mutex);
+    return ret;
+}
+
+esp_err_t ppa_hal_scale_image(const ppa_image_t* src_img,
+                              const ppa_image_t* dst_img,
+                              float scale_x, float scale_y,
+                              bool blocking) {
+    ppa_transform_t transform = PPA_TRANSFORM_INIT();
+    transform.scale_x = scale_x;
+    transform.scale_y = scale_y;
+    
+    return ppa_hal_transform_image(src_img, NULL, dst_img, 0, 0, &transform, blocking);
+}
+
+esp_err_t ppa_hal_rotate_image(const ppa_image_t* src_img,
+                               const ppa_image_t* dst_img,
+                               ppa_srm_rotation_angle_t angle,
+                               bool blocking) {
+    ppa_transform_t transform = PPA_TRANSFORM_INIT();
+    transform.rotation = angle;
+    
+    return ppa_hal_transform_image(src_img, NULL, dst_img, 0, 0, &transform, blocking);
+}
+
+// === Blend Operations ===
+
+esp_err_t ppa_hal_blend_images(const ppa_image_t* bg_img,
+                               const ppa_image_t* fg_img,
+                               const ppa_image_t* dst_img,
+                               const ppa_rect_t* blend_rect,
+                               const ppa_blend_params_t* params,
+                               bool blocking) {
+    if (!ppa_hal_is_initialized()) {
+        ESP_LOGE(TAG, "PPA HAL not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    if (!bg_img || !fg_img || !dst_img || !params) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    // Take mutex
+    if (xSemaphoreTake(g_ppa_ctx->mutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to take mutex");
+        return ESP_ERR_TIMEOUT;
+    }
+    
+    if (g_ppa_ctx->status == PPA_STATUS_BUSY) {
+        xSemaphoreGive(g_ppa_ctx->mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    g_ppa_ctx->status = PPA_STATUS_BUSY;
+    g_last_op_start = esp_timer_get_time();
+    
+    uint16_t rect_w = blend_rect ? blend_rect->width : MIN(bg_img->width, fg_img->width);
+    uint16_t rect_h = blend_rect ? blend_rect->height : MIN(bg_img->height, fg_img->height);
+    uint16_t rect_x = blend_rect ? blend_rect->x : 0;
+    uint16_t rect_y = blend_rect ? blend_rect->y : 0;
+    
+    // Configure blend operation
+    ppa_blend_oper_config_t blend_config = {
+        .in_bg = {
+            .buffer = bg_img->buffer,
+            .pic_w = bg_img->width,
+            .pic_h = bg_img->height,
+            .block_w = rect_w,
+            .block_h = rect_h,
+            .block_offset_x = rect_x,
+            .block_offset_y = rect_y,
+            .blend_cm = convert_to_blend_color_mode(bg_img->format)
+        },
+        .in_fg = {
+            .buffer = fg_img->buffer,
+            .pic_w = fg_img->width,
+            .pic_h = fg_img->height,
+            .block_w = rect_w,
+            .block_h = rect_h,
+            .block_offset_x = rect_x,
+            .block_offset_y = rect_y,
+            .blend_cm = convert_to_blend_color_mode(fg_img->format)
+        },
+        .out = {
+            .buffer = dst_img->buffer,
+            .pic_w = dst_img->width,
+            .pic_h = dst_img->height,
+            .block_offset_x = rect_x,
+            .block_offset_y = rect_y,
+            .blend_cm = convert_to_blend_color_mode(dst_img->format)
+        },
+        .bg_rgb_swap = false,
+        .bg_byte_swap = false,
+        .bg_alpha_update_mode = PPA_ALPHA_FIX_VALUE,
+        .bg_alpha_fix_val = params->bg_alpha,
+        .fg_rgb_swap = false,
+        .fg_byte_swap = false,
+        .fg_alpha_update_mode = PPA_ALPHA_FIX_VALUE,
+        .fg_alpha_fix_val = params->fg_alpha,
+        .bg_ck_en = params->color_key_enable,
+        .fg_ck_en = params->color_key_enable,
+        .mode = blocking ? PPA_TRANS_MODE_BLOCKING : PPA_TRANS_MODE_NON_BLOCKING,
+        .user_data = NULL
+    };
+    
+    if (params->color_key_enable) {
+        blend_config.bg_ck_rgb_low_thres.val = params->color_key_low;
+        blend_config.bg_ck_rgb_high_thres.val = params->color_key_high;
+        blend_config.fg_ck_rgb_low_thres.val = params->color_key_low;
+        blend_config.fg_ck_rgb_high_thres.val = params->color_key_high;
+        blend_config.ck_rgb_default_val.val = params->color_key_default;
+    }
+    
+    if (blocking) {
+        g_ppa_ctx->waiting_task = xTaskGetCurrentTaskHandle();
+    }
+    
+    esp_err_t ret = ppa_do_blend(g_ppa_ctx->clients[PPA_CLIENT_TYPE_BLEND], &blend_config);
+    
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Blend operation failed: %s", esp_err_to_name(ret));
+        g_ppa_ctx->status = PPA_STATUS_ERROR;
+        g_ppa_ctx->waiting_task = NULL;
+    } else if (blocking) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PPA_OPERATION_TIMEOUT_MS));
+        g_ppa_ctx->status = PPA_STATUS_IDLE;
+    }
+    
+    xSemaphoreGive(g_ppa_ctx->mutex);
+    return ret;
+}
+
+esp_err_t ppa_hal_alpha_blend(const ppa_image_t* bg_img,
+                              const ppa_image_t* fg_img,
+                              const ppa_image_t* dst_img,
+                              uint8_t alpha,
+                              bool blocking) {
+    ppa_blend_params_t params = PPA_BLEND_PARAMS_INIT();
+    params.fg_alpha = alpha;
+    
+    return ppa_hal_blend_images(bg_img, fg_img, dst_img, NULL, &params, blocking);
+}
+
+// === Fill Operations ===
+
+esp_err_t ppa_hal_fill_rect(const ppa_image_t* dst_img,
+                            const ppa_rect_t* fill_rect,
+                            uint32_t color,
+                            bool blocking) {
+    if (!ppa_hal_is_initialized()) {
+        ESP_LOGE(TAG, "PPA HAL not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    if (!dst_img) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    // Take mutex
+    if (xSemaphoreTake(g_ppa_ctx->mutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to take mutex");
+        return ESP_ERR_TIMEOUT;
+    }
+    
+    if (g_ppa_ctx->status == PPA_STATUS_BUSY) {
+        xSemaphoreGive(g_ppa_ctx->mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    g_ppa_ctx->status = PPA_STATUS_BUSY;
+    g_last_op_start = esp_timer_get_time();
+    
+    uint16_t rect_w = fill_rect ? fill_rect->width : dst_img->width;
+    uint16_t rect_h = fill_rect ? fill_rect->height : dst_img->height;
+    uint16_t rect_x = fill_rect ? fill_rect->x : 0;
+    uint16_t rect_y = fill_rect ? fill_rect->y : 0;
+    
+    // Configure fill operation
+    ppa_fill_oper_config_t fill_config = {
+        .out = {
+            .buffer = dst_img->buffer,
+            .pic_w = dst_img->width,
+            .pic_h = dst_img->height,
+            .block_offset_x = rect_x,
+            .block_offset_y = rect_y,
+            .fill_cm = convert_to_fill_color_mode(dst_img->format)
+        },
+        .fill_block_w = rect_w,
+        .fill_block_h = rect_h,
+        .fill_argb_color = {.val = color},
+        .mode = blocking ? PPA_TRANS_MODE_BLOCKING : PPA_TRANS_MODE_NON_BLOCKING,
+        .user_data = NULL
+    };
+    
+    if (blocking) {
+        g_ppa_ctx->waiting_task = xTaskGetCurrentTaskHandle();
+    }
+    
+    esp_err_t ret = ppa_do_fill(g_ppa_ctx->clients[PPA_CLIENT_TYPE_FILL], &fill_config);
+    
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Fill operation failed: %s", esp_err_to_name(ret));
+        g_ppa_ctx->status = PPA_STATUS_ERROR;
+        g_ppa_ctx->waiting_task = NULL;
+    } else if (blocking) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PPA_OPERATION_TIMEOUT_MS));
+        g_ppa_ctx->status = PPA_STATUS_IDLE;
+    }
+    
+    xSemaphoreGive(g_ppa_ctx->mutex);
+    return ret;
+}
+
+esp_err_t ppa_hal_clear_image(const ppa_image_t* dst_img,
+                              uint32_t color,
+                              bool blocking) {
+    return ppa_hal_fill_rect(dst_img, NULL, color, blocking);
+}
+
+// === Utility Functions ===
+
+bool ppa_hal_format_supported(ppa_image_format_t src_format, 
+                              ppa_image_format_t dst_format) {
+    // Check if format conversion is supported by PPA
+    switch (src_format) {
+        case PPA_FORMAT_RGB565:
+        case PPA_FORMAT_RGB888:
+        case PPA_FORMAT_ARGB8888:
+            return (dst_format == PPA_FORMAT_RGB565 || 
+                    dst_format == PPA_FORMAT_RGB888 || 
+                    dst_format == PPA_FORMAT_ARGB8888);
+        case PPA_FORMAT_YUV420:
+        case PPA_FORMAT_YUV444:
+            return (dst_format == PPA_FORMAT_YUV420 || 
+                    dst_format == PPA_FORMAT_YUV444 ||
+                    dst_format == PPA_FORMAT_RGB565 || 
+                    dst_format == PPA_FORMAT_RGB888 || 
+                    dst_format == PPA_FORMAT_ARGB8888);
+        default:
+            return false;
+    }
+}
+
+uint8_t ppa_hal_bytes_per_pixel(ppa_image_format_t format) {
+    switch (format) {
+        case PPA_FORMAT_RGB565: return 2;
+        case PPA_FORMAT_RGB888: return 3;
+        case PPA_FORMAT_ARGB8888: return 4;
+        case PPA_FORMAT_YUV420: return 1; // Y plane, UV is 0.5 bytes per pixel
+        case PPA_FORMAT_YUV444: return 3;
+        case PPA_FORMAT_A8: return 1;
+        case PPA_FORMAT_A4: return 1; // Packed, 2 pixels per byte
+        default: return 2;
+    }
+}
+
+void* ppa_hal_align_buffer(void* addr) {
+    uintptr_t aligned = ((uintptr_t)addr + PPA_CACHE_LINE_SIZE - 1) & ~(PPA_CACHE_LINE_SIZE - 1);
+    return (void*)aligned;
+}
+
+size_t ppa_hal_align_size(size_t size) {
+    return (size + PPA_CACHE_LINE_SIZE - 1) & ~(PPA_CACHE_LINE_SIZE - 1);
+}
+
+void* ppa_hal_alloc_buffer(size_t size, bool use_psram) {
+    size_t aligned_size = ppa_hal_align_size(size);
+    uint32_t caps = MALLOC_CAP_DMA;
+    
+    if (use_psram) {
+        caps |= MALLOC_CAP_SPIRAM;
+    } else {
+        caps |= MALLOC_CAP_INTERNAL;
+    }
+    
+    void* buffer = heap_caps_aligned_alloc(PPA_CACHE_LINE_SIZE, aligned_size, caps);
+    if (!buffer) {
+        ESP_LOGE(TAG, "Failed to allocate %zu bytes for PPA buffer", aligned_size);
+        return NULL;
+    }
+    
+    ESP_LOGD(TAG, "Allocated %zu bytes PPA buffer at %p", aligned_size, buffer);
+    return buffer;
+}
+
+void ppa_hal_free_buffer(void* buffer) {
+    if (buffer) {
+        heap_caps_free(buffer);
+    }
+}
+
+esp_err_t ppa_hal_wait_completion(uint32_t timeout_ms) {
+    if (!ppa_hal_is_initialized()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    uint64_t start_time = esp_timer_get_time();
+    uint64_t timeout_us = timeout_ms * 1000ULL;
+    
+    while (g_ppa_ctx->status == PPA_STATUS_BUSY) {
+        if (esp_timer_get_time() - start_time > timeout_us) {
+            ESP_LOGW(TAG, "PPA operation timeout");
+            g_ppa_ctx->status = PPA_STATUS_TIMEOUT;
+            return ESP_ERR_TIMEOUT;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    
+    return (g_ppa_ctx->status == PPA_STATUS_COMPLETE) ? ESP_OK : ESP_FAIL;
+}
+
+esp_err_t ppa_hal_get_performance_stats(uint32_t* ops_per_sec, uint32_t* avg_time_us) {
+    if (!ops_per_sec || !avg_time_us) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    if (g_operation_count == 0) {
+        *ops_per_sec = 0;
+        *avg_time_us = 0;
+        return ESP_OK;
+    }
+    
+    *avg_time_us = (uint32_t)(g_total_time_us / g_operation_count);
+    
+    if (*avg_time_us > 0) {
+        *ops_per_sec = 1000000 / *avg_time_us;
+    } else {
+        *ops_per_sec = 0;
+    }
+    
+    return ESP_OK;
+}
+
+// === Format Conversion Helpers ===
+
+static ppa_srm_color_mode_t convert_to_srm_color_mode(ppa_image_format_t format) {
+    switch (format) {
+        case PPA_FORMAT_RGB565: return PPA_SRM_COLOR_MODE_RGB565;
+        case PPA_FORMAT_RGB888: return PPA_SRM_COLOR_MODE_RGB888;
+        case PPA_FORMAT_ARGB8888: return PPA_SRM_COLOR_MODE_ARGB8888;
+        case PPA_FORMAT_YUV420: return PPA_SRM_COLOR_MODE_YUV420;
+        case PPA_FORMAT_YUV444: return PPA_SRM_COLOR_MODE_YUV444;
+        default: return PPA_SRM_COLOR_MODE_RGB565;
+    }
+}
+
+static ppa_blend_color_mode_t convert_to_blend_color_mode(ppa_image_format_t format) {
+    switch (format) {
+        case PPA_FORMAT_RGB565: return PPA_BLEND_COLOR_MODE_RGB565;
+        case PPA_FORMAT_RGB888: return PPA_BLEND_COLOR_MODE_RGB888;
+        case PPA_FORMAT_ARGB8888: return PPA_BLEND_COLOR_MODE_ARGB8888;
+        case PPA_FORMAT_A8: return PPA_BLEND_COLOR_MODE_A8;
+        case PPA_FORMAT_A4: return PPA_BLEND_COLOR_MODE_A4;
+        default: return PPA_BLEND_COLOR_MODE_RGB565;
+    }
+}
+
+static ppa_fill_color_mode_t convert_to_fill_color_mode(ppa_image_format_t format) {
+    switch (format) {
+        case PPA_FORMAT_RGB565: return PPA_FILL_COLOR_MODE_RGB565;
+        case PPA_FORMAT_RGB888: return PPA_FILL_COLOR_MODE_RGB888;
+        case PPA_FORMAT_ARGB8888: return PPA_FILL_COLOR_MODE_ARGB8888;
+        default: return PPA_FILL_COLOR_MODE_RGB565;
+    }
+}
+
+// === LVGL Integration ===
+
+#ifdef PPA_ENABLE_LVGL_INTEGRATION
+
+esp_err_t ppa_hal_lvgl_init(void) {
+    if (!ppa_hal_is_initialized()) {
+        ESP_LOGE(TAG, "PPA HAL must be initialized first");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    ESP_LOGI(TAG, "LVGL PPA integration initialized");
+    return ESP_OK;
+}
+
+void ppa_hal_lvgl_fill(lv_disp_drv_t* disp_drv, lv_color_t* dest_buf, 
+                       lv_coord_t dest_width, const lv_area_t* fill_area, 
+                       lv_color_t color) {
+    if (!ppa_hal_is_initialized()) {
+        return;
+    }
+    
+    // Convert LVGL types to PPA types
+    ppa_image_t dst_img = {
+        .buffer = dest_buf,
+        .width = (uint16_t)dest_width,
+        .height = (uint16_t)((fill_area->y2 - fill_area->y1 + 1) + fill_area->y1),
+        .format = PPA_FORMAT_RGB565,  // Assuming RGB565, adjust as needed
+        .is_psram = false
+    };
+    
+    ppa_rect_t fill_rect = {
+        .x = (uint16_t)fill_area->x1,
+        .y = (uint16_t)fill_area->y1,
+        .width = (uint16_t)(fill_area->x2 - fill_area->x1 + 1),
+        .height = (uint16_t)(fill_area->y2 - fill_area->y1 + 1)
+    };
+    
+    uint32_t ppa_color = ((uint32_t)color.full << 16) | color.full; // RGB565 to ARGB8888
+    
+    esp_err_t ret = ppa_hal_fill_rect(&dst_img, &fill_rect, ppa_color, true);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "LVGL PPA fill failed: %s", esp_err_to_name(ret));
+    }
+}
+
+void ppa_hal_lvgl_blend(lv_disp_drv_t* disp_drv, lv_color_t* dest_buf,
+                        lv_coord_t dest_width, const lv_area_t* dest_area,
+                        const lv_color_t* src_buf, lv_coord_t src_width,
+                        const lv_area_t* src_area, lv_opa_t opa) {
+    if (!ppa_hal_is_initialized()) {
+        return;
+    }
+    
+    // Convert LVGL types to PPA types
+    ppa_image_t dst_img = {
+        .buffer = dest_buf,
+        .width = (uint16_t)dest_width,
+        .height = (uint16_t)((dest_area->y2 - dest_area->y1 + 1) + dest_area->y1),
+        .format = PPA_FORMAT_RGB565,
+        .is_psram = false
+    };
+    
+    ppa_image_t src_img = {
+        .buffer = (void*)src_buf,
+        .width = (uint16_t)src_width,
+        .height = (uint16_t)((src_area->y2 - src_area->y1 + 1) + src_area->y1),
+        .format = PPA_FORMAT_RGB565,
+        .is_psram = false
+    };
+    
+    esp_err_t ret = ppa_hal_alpha_blend(&dst_img, &src_img, &dst_img, opa, true);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "LVGL PPA blend failed: %s", esp_err_to_name(ret));
+    }
+}
+
+void ppa_hal_lvgl_blit(lv_disp_drv_t* disp_drv, lv_color_t* dest_buf,
+                       lv_coord_t dest_width, const lv_area_t* dest_area,
+                       const lv_color_t* src_buf, lv_coord_t src_width,
+                       const lv_area_t* src_area) {
+    // Blit is just blend with full opacity
+    ppa_hal_lvgl_blend(disp_drv, dest_buf, dest_width, dest_area,
+                       src_buf, src_width, src_area, LV_OPA_COVER);
+}
+
+#endif // PPA_ENABLE_LVGL_INTEGRATION
+
+#endif // CONFIG_ESP_PPA_ACCELERATION

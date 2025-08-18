@@ -165,7 +165,7 @@ os_error_t RS485TerminalApp::initializeRS485() {
 
     // Set UART pins
     ret = uart_set_pin(UART_PORT, RS485_TX_PIN, RS485_RX_PIN, 
-                       RS485_RTS_PIN, RS485_CTS_PIN);
+                       RS485_RTS_PIN, CTS_PIN);
     if (ret != ESP_OK) {
         log(ESP_LOG_ERROR, "Failed to set UART pins: %s", esp_err_to_name(ret));
         return OS_ERROR_HARDWARE;
