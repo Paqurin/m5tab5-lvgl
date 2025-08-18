@@ -25,10 +25,9 @@ enum SystemEvents : EventType {
     EVENT_SYSTEM_LOW_MEMORY,
     EVENT_SYSTEM_ERROR,
     
-    EVENT_UI_TOUCH_PRESS = 2000,
-    EVENT_UI_TOUCH_RELEASE,
-    EVENT_UI_TOUCH_MOVE,
-    EVENT_UI_GESTURE,
+    // Touch events are defined in os_config.h as input_event_type_t
+    // EVENT_UI_TOUCH_PRESS, EVENT_UI_TOUCH_RELEASE, EVENT_UI_TOUCH_MOVE
+    EVENT_UI_GESTURE = 2000,
     EVENT_UI_SCREEN_CHANGE,
     
     EVENT_APP_LAUNCH = 3000,

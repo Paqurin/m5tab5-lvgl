@@ -11,7 +11,8 @@ BasicAppsSuite::BasicAppsSuite()
       m_selectedRow(0), m_selectedCol(0), m_hasCopiedCell(false),
       m_currentGame(GameType::NONE), m_memoryGameLevel(1), 
       m_memoryGameState(MemoryGameState::HIDDEN), m_puzzleSize(3), m_puzzleEmptyIndex(8),
-      m_calculatorNewInput(true) {
+      m_calculatorNewInput(true), m_graphXMin(-10), m_graphXMax(10), 
+      m_graphYMin(-10), m_graphYMax(10), m_graphingMode(false) {
     setDescription("Basic applications suite with expense tracking, games, and spreadsheet");
     setAuthor("M5Stack");
     setPriority(AppPriority::APP_NORMAL);
@@ -160,10 +161,20 @@ void BasicAppsSuite::createExpenseTab() {
 }
 
 void BasicAppsSuite::createCalculatorTab() {
+    // Create mode toggle button
+    m_graphModeButton = lv_btn_create(m_calculatorTab);
+    lv_obj_set_size(m_graphModeButton, 80, 30);
+    lv_obj_align(m_graphModeButton, LV_ALIGN_TOP_RIGHT, -10, 5);
+    lv_obj_add_event_cb(m_graphModeButton, graphModeCallback, LV_EVENT_CLICKED, this);
+    
+    lv_obj_t* modeLabel = lv_label_create(m_graphModeButton);
+    lv_label_set_text(modeLabel, "Graph");
+    lv_obj_center(modeLabel);
+    
     // Create display
     m_calculatorDisplay = lv_textarea_create(m_calculatorTab);
-    lv_obj_set_size(m_calculatorDisplay, LV_PCT(95), 60);
-    lv_obj_align(m_calculatorDisplay, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_size(m_calculatorDisplay, LV_PCT(70), 60);
+    lv_obj_align(m_calculatorDisplay, LV_ALIGN_TOP_LEFT, 10, 10);
     lv_textarea_set_text(m_calculatorDisplay, "0");
     lv_textarea_set_one_line(m_calculatorDisplay, true);
     lv_obj_set_style_text_align(m_calculatorDisplay, LV_TEXT_ALIGN_RIGHT, 0);
@@ -223,6 +234,9 @@ void BasicAppsSuite::createCalculatorTab() {
             lv_obj_add_event_cb(btn, calculatorButtonCallback, LV_EVENT_CLICKED, this);
         }
     }
+    
+    // Create graphing area (initially hidden)
+    createGraphingArea();
 }
 
 void BasicAppsSuite::createGamesTab() {
@@ -580,6 +594,239 @@ float BasicAppsSuite::evaluateExpression(const std::string& expression) {
     return std::stof(expr);
 }
 
+void BasicAppsSuite::createGraphingArea() {
+    m_graphingArea = lv_obj_create(m_calculatorTab);
+    lv_obj_set_size(m_graphingArea, LV_PCT(95), LV_PCT(75));
+    lv_obj_align_to(m_graphingArea, m_calculatorDisplay, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_set_style_bg_color(m_graphingArea, lv_color_hex(0x1E1E1E), 0);
+    lv_obj_add_flag(m_graphingArea, LV_OBJ_FLAG_HIDDEN); // Initially hidden
+    
+    // Function input area
+    lv_obj_t* inputContainer = lv_obj_create(m_graphingArea);
+    lv_obj_set_size(inputContainer, LV_PCT(100), 50);
+    lv_obj_align(inputContainer, LV_ALIGN_TOP_MID, 0, 5);
+    lv_obj_set_style_bg_color(inputContainer, lv_color_hex(0x2C2C2C), 0);
+    
+    lv_obj_t* funcLabel = lv_label_create(inputContainer);
+    lv_label_set_text(funcLabel, "f(x) =");
+    lv_obj_align(funcLabel, LV_ALIGN_LEFT_MID, 10, 0);
+    
+    m_functionInput = lv_textarea_create(inputContainer);
+    lv_obj_set_size(m_functionInput, 150, 30);
+    lv_obj_align_to(m_functionInput, funcLabel, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+    lv_textarea_set_text(m_functionInput, "sin(x)");
+    lv_textarea_set_one_line(m_functionInput, true);
+    
+    m_plotButton = lv_btn_create(inputContainer);
+    lv_obj_set_size(m_plotButton, 60, 30);
+    lv_obj_align_to(m_plotButton, m_functionInput, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+    lv_obj_add_event_cb(m_plotButton, plotFunctionCallback, LV_EVENT_CLICKED, this);
+    
+    lv_obj_t* plotLabel = lv_label_create(m_plotButton);
+    lv_label_set_text(plotLabel, "Plot");
+    lv_obj_center(plotLabel);
+    
+    m_clearGraphButton = lv_btn_create(inputContainer);
+    lv_obj_set_size(m_clearGraphButton, 60, 30);
+    lv_obj_align_to(m_clearGraphButton, m_plotButton, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+    lv_obj_add_event_cb(m_clearGraphButton, clearGraphCallback, LV_EVENT_CLICKED, this);
+    
+    lv_obj_t* clearLabel = lv_label_create(m_clearGraphButton);
+    lv_label_set_text(clearLabel, "Clear");
+    lv_obj_center(clearLabel);
+    
+    // Graph canvas
+    m_graphCanvas = lv_canvas_create(m_graphingArea);
+    lv_obj_set_size(m_graphCanvas, 300, 200);
+    lv_obj_align_to(m_graphCanvas, inputContainer, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_set_style_bg_color(m_graphCanvas, lv_color_hex(0x000000), 0);
+    
+    // Initialize canvas buffer
+    static lv_color_t canvas_buf[300 * 200];
+    lv_canvas_set_buffer(m_graphCanvas, canvas_buf, 300, 200, LV_IMG_CF_TRUE_COLOR);
+    lv_canvas_fill_bg(m_graphCanvas, lv_color_hex(0x000000), LV_OPA_COVER);
+    
+    drawGridLines();
+    drawAxes();
+}
+
+void BasicAppsSuite::plotFunction(const std::string& function) {
+    if (function.empty()) return;
+    
+    m_currentFunction = function;
+    m_plotPoints.clear();
+    
+    // Clear canvas and redraw grid
+    lv_canvas_fill_bg(m_graphCanvas, lv_color_hex(0x000000), LV_OPA_COVER);
+    drawGridLines();
+    drawAxes();
+    
+    // Plot function points
+    float stepSize = (m_graphXMax - m_graphXMin) / 300.0f; // One point per pixel
+    
+    for (float x = m_graphXMin; x <= m_graphXMax; x += stepSize) {
+        try {
+            float y = evaluateMathFunction(function, x);
+            if (!std::isnan(y) && !std::isinf(y)) {
+                plotPoint(x, y, 0x00FF00); // Green color
+                m_plotPoints.push_back({x, y});
+            }
+        } catch (...) {
+            // Skip invalid points
+        }
+    }
+    
+    lv_obj_invalidate(m_graphCanvas);
+}
+
+void BasicAppsSuite::clearGraph() {
+    if (!m_graphCanvas) return;
+    
+    lv_canvas_fill_bg(m_graphCanvas, lv_color_hex(0x000000), LV_OPA_COVER);
+    drawGridLines();
+    drawAxes();
+    m_plotPoints.clear();
+    lv_obj_invalidate(m_graphCanvas);
+}
+
+void BasicAppsSuite::setGraphWindow(float xMin, float xMax, float yMin, float yMax) {
+    m_graphXMin = xMin;
+    m_graphXMax = xMax;
+    m_graphYMin = yMin;
+    m_graphYMax = yMax;
+}
+
+float BasicAppsSuite::evaluateMathFunction(const std::string& function, float x) {
+    std::string expr = function;
+    
+    // Replace x with the actual value
+    std::string xStr = std::to_string(x);
+    size_t pos = 0;
+    while ((pos = expr.find('x', pos)) != std::string::npos) {
+        expr.replace(pos, 1, "(" + xStr + ")");
+        pos += xStr.length() + 2;
+    }
+    
+    // Basic function evaluation with common math functions
+    if (expr.find("sin") != std::string::npos) {
+        size_t sinPos = expr.find("sin(");
+        if (sinPos != std::string::npos) {
+            size_t endPos = expr.find(")", sinPos);
+            if (endPos != std::string::npos) {
+                std::string sinArg = expr.substr(sinPos + 4, endPos - sinPos - 4);
+                float arg = evaluateExpression(sinArg);
+                return std::sin(arg);
+            }
+        }
+    }
+    
+    if (expr.find("cos") != std::string::npos) {
+        size_t cosPos = expr.find("cos(");
+        if (cosPos != std::string::npos) {
+            size_t endPos = expr.find(")", cosPos);
+            if (endPos != std::string::npos) {
+                std::string cosArg = expr.substr(cosPos + 4, endPos - cosPos - 4);
+                float arg = evaluateExpression(cosArg);
+                return std::cos(arg);
+            }
+        }
+    }
+    
+    if (expr.find("tan") != std::string::npos) {
+        size_t tanPos = expr.find("tan(");
+        if (tanPos != std::string::npos) {
+            size_t endPos = expr.find(")", tanPos);
+            if (endPos != std::string::npos) {
+                std::string tanArg = expr.substr(tanPos + 4, endPos - tanPos - 4);
+                float arg = evaluateExpression(tanArg);
+                return std::tan(arg);
+            }
+        }
+    }
+    
+    // For simple polynomial expressions, use existing evaluator
+    return evaluateExpression(expr);
+}
+
+void BasicAppsSuite::drawGridLines() {
+    if (!m_graphCanvas) return;
+    
+    // Draw vertical grid lines
+    float xStep = (m_graphXMax - m_graphXMin) / 10.0f;
+    for (int i = 0; i <= 10; i++) {
+        int x = (int)(i * 30); // 300 pixels / 10 divisions
+        lv_point_t points1[] = {{x, 0}, {x, 200}};
+        lv_draw_line_dsc_t line_dsc1;
+        lv_draw_line_dsc_init(&line_dsc1);
+        line_dsc1.color = lv_color_hex(0x333333);
+        line_dsc1.width = 1;
+        lv_canvas_draw_line(m_graphCanvas, points1, 2, &line_dsc1);
+    }
+    
+    // Draw horizontal grid lines
+    float yStep = (m_graphYMax - m_graphYMin) / 10.0f;
+    for (int i = 0; i <= 10; i++) {
+        int y = (int)(i * 20); // 200 pixels / 10 divisions
+        lv_point_t points2[] = {{0, y}, {300, y}};
+        lv_draw_line_dsc_t line_dsc2;
+        lv_draw_line_dsc_init(&line_dsc2);
+        line_dsc2.color = lv_color_hex(0x333333);
+        line_dsc2.width = 1;
+        lv_canvas_draw_line(m_graphCanvas, points2, 2, &line_dsc2);
+    }
+}
+
+void BasicAppsSuite::drawAxes() {
+    if (!m_graphCanvas) return;
+    
+    // Calculate center position
+    int centerX = (int)(300 * (-m_graphXMin) / (m_graphXMax - m_graphXMin));
+    int centerY = (int)(200 * (m_graphYMax) / (m_graphYMax - m_graphYMin));
+    
+    // Draw X axis
+    if (centerY >= 0 && centerY < 200) {
+        lv_point_t points3[] = {{0, centerY}, {300, centerY}};
+        lv_draw_line_dsc_t line_dsc3;
+        lv_draw_line_dsc_init(&line_dsc3);
+        line_dsc3.color = lv_color_hex(0x666666);
+        line_dsc3.width = 2;
+        lv_canvas_draw_line(m_graphCanvas, points3, 2, &line_dsc3);
+    }
+    
+    // Draw Y axis
+    if (centerX >= 0 && centerX < 300) {
+        lv_point_t points4[] = {{centerX, 0}, {centerX, 200}};
+        lv_draw_line_dsc_t line_dsc4;
+        lv_draw_line_dsc_init(&line_dsc4);
+        line_dsc4.color = lv_color_hex(0x666666);
+        line_dsc4.width = 2;
+        lv_canvas_draw_line(m_graphCanvas, points4, 2, &line_dsc4);
+    }
+}
+
+void BasicAppsSuite::plotPoint(float x, float y, uint32_t color) {
+    if (!m_graphCanvas) return;
+    
+    // Convert world coordinates to screen coordinates
+    int screenX = (int)(300 * (x - m_graphXMin) / (m_graphXMax - m_graphXMin));
+    int screenY = (int)(200 * (m_graphYMax - y) / (m_graphYMax - m_graphYMin));
+    
+    // Check bounds
+    if (screenX >= 0 && screenX < 300 && screenY >= 0 && screenY < 200) {
+        lv_canvas_set_px(m_graphCanvas, screenX, screenY, lv_color_hex(color));
+    }
+}
+
+void BasicAppsSuite::updateGraphDisplay() {
+    if (!m_graphingMode) {
+        lv_obj_add_flag(m_graphingArea, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(m_calculatorGrid, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(m_graphingArea, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(m_calculatorGrid, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 // Static callbacks
 void BasicAppsSuite::tabChangedCallback(lv_event_t* e) {
     // Handle tab change if needed
@@ -683,6 +930,36 @@ void BasicAppsSuite::editExpense(uint32_t expenseId, const Expense& expense) {
     }
     saveExpenses();
     updateExpenseSummary();
+}
+
+void BasicAppsSuite::graphModeCallback(lv_event_t* e) {
+    BasicAppsSuite* app = static_cast<BasicAppsSuite*>(lv_event_get_user_data(e));
+    app->m_graphingMode = !app->m_graphingMode;
+    
+    lv_obj_t* btn = lv_event_get_target(e);
+    lv_obj_t* label = lv_obj_get_child(btn, 0);
+    
+    if (app->m_graphingMode) {
+        lv_label_set_text(label, "Calc");
+    } else {
+        lv_label_set_text(label, "Graph");
+    }
+    
+    app->updateGraphDisplay();
+}
+
+void BasicAppsSuite::plotFunctionCallback(lv_event_t* e) {
+    BasicAppsSuite* app = static_cast<BasicAppsSuite*>(lv_event_get_user_data(e));
+    
+    if (app->m_functionInput) {
+        std::string function = lv_textarea_get_text(app->m_functionInput);
+        app->plotFunction(function);
+    }
+}
+
+void BasicAppsSuite::clearGraphCallback(lv_event_t* e) {
+    BasicAppsSuite* app = static_cast<BasicAppsSuite*>(lv_event_get_user_data(e));
+    app->clearGraph();
 }
 
 extern "C" std::unique_ptr<BaseApp> createBasicAppsSuite() {

@@ -44,10 +44,22 @@ public:
     void handleTouchEvent(const TouchEventData& eventData);
 
     /**
+     * @brief Handle multi-touch gestures for UI navigation
+     * @param eventData Touch event data with gesture information
+     */
+    void handleMultiTouchGesture(const TouchEventData& eventData);
+
+    /**
      * @brief Enable/disable input processing
      * @param enabled True to enable, false to disable
      */
     void setEnabled(bool enabled) { m_enabled = enabled; }
+
+    /**
+     * @brief Enable/disable multi-touch gesture handling
+     * @param enabled True to enable, false to disable
+     */
+    void setMultiTouchEnabled(bool enabled) { m_multiTouchEnabled = enabled; }
 
     /**
      * @brief Check if input is enabled
@@ -72,6 +84,7 @@ private:
     // Input state
     bool m_initialized = false;
     bool m_enabled = true;
+    bool m_multiTouchEnabled = true;
     
     // LVGL input device
     lv_indev_drv_t m_inputDriver;

@@ -106,6 +106,17 @@ private:
     void calculateResult();
     void clearCalculator();
     
+    // Graphing calculator functions
+    void createGraphingArea();
+    void plotFunction(const std::string& function);
+    void clearGraph();
+    void setGraphWindow(float xMin, float xMax, float yMin, float yMax);
+    float evaluateMathFunction(const std::string& function, float x);
+    void drawGridLines();
+    void drawAxes();
+    void plotPoint(float x, float y, uint32_t color);
+    void updateGraphDisplay();
+    
     // Utility functions
     std::string formatCurrency(float amount);
     std::string formatDate(time_t date);
@@ -131,6 +142,9 @@ private:
     static void puzzlePieceCallback(lv_event_t* e);
     static void gameResetCallback(lv_event_t* e);
     static void calculatorButtonCallback(lv_event_t* e);
+    static void graphModeCallback(lv_event_t* e);
+    static void plotFunctionCallback(lv_event_t* e);
+    static void clearGraphCallback(lv_event_t* e);
     
     // Data
     std::vector<Expense> m_expenses;
@@ -167,6 +181,12 @@ private:
     std::string m_calculatorResult;
     bool m_calculatorNewInput;
     
+    // Graphing calculator state
+    std::string m_currentFunction;
+    float m_graphXMin, m_graphXMax, m_graphYMin, m_graphYMax;
+    bool m_graphingMode;
+    std::vector<std::pair<float, float>> m_plotPoints;
+    
     // UI elements
     lv_obj_t* m_tabView = nullptr;
     lv_obj_t* m_expenseTab = nullptr;
@@ -200,6 +220,12 @@ private:
     // Calculator UI
     lv_obj_t* m_calculatorDisplay = nullptr;
     lv_obj_t* m_calculatorGrid = nullptr;
+    lv_obj_t* m_graphingArea = nullptr;
+    lv_obj_t* m_functionInput = nullptr;
+    lv_obj_t* m_graphCanvas = nullptr;
+    lv_obj_t* m_graphModeButton = nullptr;
+    lv_obj_t* m_plotButton = nullptr;
+    lv_obj_t* m_clearGraphButton = nullptr;
     
     Expense* m_editingExpense = nullptr;
 };

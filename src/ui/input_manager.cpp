@@ -95,8 +95,11 @@ void InputManager::handleTouchEvent(const TouchEventData& eventData) {
             break;
 
         case TouchEvent::GESTURE:
-            ESP_LOGD(TAG, "Gesture detected: %d", (int)eventData.gesture);
-            // Handle gesture events
+            ESP_LOGD(TAG, "Gesture detected: %d (touches: %d)", (int)eventData.gesture, eventData.touchCount);
+            if (m_multiTouchEnabled && eventData.touchCount > 1) {
+                handleMultiTouchGesture(eventData);
+            }
+            // Handle single-touch gesture events
             break;
     }
 }
@@ -116,6 +119,91 @@ os_error_t InputManager::initializeLVGLInput() {
 
     ESP_LOGD(TAG, "LVGL input device initialized");
     return OS_OK;
+}
+
+void InputManager::handleMultiTouchGesture(const TouchEventData& eventData) {
+    if (!m_multiTouchEnabled) {
+        return;
+    }
+
+    ESP_LOGI(TAG, "Processing multi-touch gesture: %d with %d touches", 
+             (int)eventData.gesture, eventData.touchCount);
+
+    switch (eventData.gesture) {
+        case GestureType::TWO_FINGER_TAP:
+            ESP_LOGI(TAG, "Two-finger tap - Context menu");
+            // Trigger context menu or app switcher
+            break;
+
+        case GestureType::THREE_FINGER_TAP:
+            ESP_LOGI(TAG, "Three-finger tap - Home screen");
+            // Navigate to home screen
+            PUBLISH_EVENT(EVENT_UI_HOME_BUTTON, nullptr, 0);
+            break;
+
+        case GestureType::FOUR_FINGER_TAP:
+            ESP_LOGI(TAG, "Four-finger tap - App switcher");
+            // Show app switcher/task manager
+            PUBLISH_EVENT(EVENT_UI_TASK_SWITCHER, nullptr, 0);
+            break;
+
+        case GestureType::FIVE_FINGER_TAP:
+            ESP_LOGI(TAG, "Five-finger tap - Settings/control center");
+            // Show settings or control center
+            PUBLISH_EVENT(EVENT_UI_CONTROL_CENTER, nullptr, 0);
+            break;
+
+        case GestureType::PINCH_IN:
+            ESP_LOGI(TAG, "Pinch in - Zoom out (distance: %.1f)", eventData.gestureDistance);
+            // Send zoom out event to active app
+            PUBLISH_EVENT(EVENT_UI_ZOOM_OUT, (void*)&eventData.gestureDistance, sizeof(float));
+            break;
+
+        case GestureType::PINCH_OUT:
+            ESP_LOGI(TAG, "Pinch out - Zoom in (distance: %.1f)", eventData.gestureDistance);
+            // Send zoom in event to active app
+            PUBLISH_EVENT(EVENT_UI_ZOOM_IN, (void*)&eventData.gestureDistance, sizeof(float));
+            break;
+
+        case GestureType::TWO_FINGER_SWIPE_UP:
+            ESP_LOGI(TAG, "Two-finger swipe up - Scroll up/back");
+            // Navigate back or scroll up
+            PUBLISH_EVENT(EVENT_UI_NAVIGATE_BACK, nullptr, 0);
+            break;
+
+        case GestureType::TWO_FINGER_SWIPE_DOWN:
+            ESP_LOGI(TAG, "Two-finger swipe down - Scroll down/forward");
+            // Navigate forward or scroll down
+            PUBLISH_EVENT(EVENT_UI_NAVIGATE_FORWARD, nullptr, 0);
+            break;
+
+        case GestureType::THREE_FINGER_SWIPE_LEFT:
+            ESP_LOGI(TAG, "Three-finger swipe left - Next app");
+            // Switch to next app
+            PUBLISH_EVENT(EVENT_UI_NEXT_APP, nullptr, 0);
+            break;
+
+        case GestureType::THREE_FINGER_SWIPE_RIGHT:
+            ESP_LOGI(TAG, "Three-finger swipe right - Previous app");
+            // Switch to previous app
+            PUBLISH_EVENT(EVENT_UI_PREV_APP, nullptr, 0);
+            break;
+
+        case GestureType::FIVE_FINGER_PINCH:
+            ESP_LOGI(TAG, "Five-finger pinch - Minimize all");
+            // Minimize all windows/apps to home screen
+            PUBLISH_EVENT(EVENT_UI_MINIMIZE_ALL, nullptr, 0);
+            break;
+
+        case GestureType::PALM_REJECTION:
+            ESP_LOGD(TAG, "Palm touch detected and rejected");
+            // Palm rejection - ignore this touch
+            break;
+
+        default:
+            ESP_LOGD(TAG, "Unhandled multi-touch gesture: %d", (int)eventData.gesture);
+            break;
+    }
 }
 
 void InputManager::lvglInputRead(lv_indev_drv_t* indev_drv, lv_indev_data_t* data) {
